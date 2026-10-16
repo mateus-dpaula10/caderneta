@@ -2,10 +2,10 @@
 // Cada dica: { key, tone: 'alert'|'warn'|'good'|'info', title, text, lesson?, href?, cta? }
 import { addMonths, currentMonth, fmtBRL, fmtPct, todayISO, addDays } from './utils.js';
 import {
-  GOAL_TYPES, budgetStatus, emergencyGoal, lastMonths, monthSummary, referenceIncome, reserveMonths, monthlyNeeded,
+  GOAL_TYPES, billsSummary, budgetStatus, emergencyGoal, lastMonths, monthSummary, referenceIncome, reserveMonths, monthlyNeeded,
 } from './finance.js';
 import { computeStreak } from './gamification.js';
-import { LESSONS } from './lessons.js';
+import { goalTrack, nextLessonFor } from './lessons.js';
 
 const lessonDone = (state, id) => Boolean(state.progress.lessons[id]?.done);
 
@@ -24,6 +24,18 @@ export function buildInsights(state, ym = currentMonth()) {
       title: `Você gastou ${fmtBRL(s.expense - s.income)} a mais do que recebeu`,
       text: 'Quando isso se repete, a diferença costuma virar cartão ou cheque especial. Veja onde dá para ajustar.',
       lesson: 'orcamento',
+    });
+  }
+
+  // 1b) Contas atrasadas no mês (despesa a pagar com data que já passou). A chave leva a quantidade:
+  // dispensar vale até aparecer outra conta atrasada.
+  const bills = billsSummary(state, ym);
+  if (bills.lateCount) {
+    tips.push({
+      key: `late:${ym}:${bills.lateCount}`, tone: 'warn',
+      title: `Você tem ${bills.lateCount} ${bills.lateCount === 1 ? 'conta atrasada' : 'contas atrasadas'} (${fmtBRL(bills.late)})`,
+      text: 'Se já pagou, marque como paga na lista. Se não, priorize as que cobram multa e juros por dia de atraso.',
+      href: '#/lancamentos?pagamento=apagar', cta: 'Ver contas a pagar',
     });
   }
 
@@ -181,31 +193,35 @@ export function buildInsights(state, ym = currentMonth()) {
     });
   }
 
-  // 11) Recomendação inicial pelo objetivo escolhido
-  const goalLesson = GOAL_TYPES[state.settings.goal]?.lesson;
-  if (goalLesson && !lessonDone(state, goalLesson)) {
+  // 11) Próxima lição ESSENCIAL da trilha do objetivo (a mesma ordem da tela Aprender).
+  const track = goalTrack(state.settings.goal);
+  const goalLesson = track.essentials.find((l) => !lessonDone(state, l.id));
+  if (goalLesson) {
+    const first = goalLesson.id === track.essentials[0].id;
     tips.push({
-      key: `goal-lesson:${goalLesson}`, tone: 'info',
-      title: `Para o seu objetivo: ${GOAL_TYPES[state.settings.goal].label.toLowerCase()}`,
-      text: `Comece pela lição "${LESSONS.find((l) => l.id === goalLesson).title}".`,
-      lesson: goalLesson,
+      key: `goal-lesson:${goalLesson.id}`, tone: 'info',
+      title: `Para o seu objetivo: ${(GOAL_TYPES[track.goal]?.label || '').toLowerCase()}`,
+      text: first ? `Comece pela lição "${goalLesson.title}".` : `Próxima lição da sua trilha: "${goalLesson.title}".`,
+      lesson: goalLesson.id,
     });
   }
 
   const dismissed = state.progress.dismissedTips || {};
   const order = { alert: 0, warn: 1, good: 2, info: 3 };
+  // Dentro do mesmo tom, dica que aponta para lição FORA das essenciais do objetivo vai para depois
+  // (as essenciais e as dicas sem lição mantêm a ordem em que foram montadas).
+  const essential = new Set(track.essentials.map((l) => l.id));
+  const rank = (t) => (t.lesson && !essential.has(t.lesson) ? 1 : 0);
   const seen = new Set();
   return tips
     .filter((t) => !dismissed[t.key])
     .filter((t) => { const k = t.lesson && t.tone === 'info' ? `l:${t.lesson}` : t.key; if (seen.has(k)) return false; seen.add(k); return true; })
-    .sort((a, b) => order[a.tone] - order[b.tone]);
+    .sort((a, b) => order[a.tone] - order[b.tone] || rank(a) - rank(b));
 }
 
-/** Próxima lição sugerida: a do objetivo, depois a primeira não concluída da trilha. */
+/** Próxima lição sugerida: a 1ª não concluída na trilha do objetivo (essenciais primeiro, depois as outras). */
 export function nextLesson(state) {
-  const goalLesson = GOAL_TYPES[state.settings.goal]?.lesson;
-  if (goalLesson && !lessonDone(state, goalLesson)) return LESSONS.find((l) => l.id === goalLesson);
-  return LESSONS.find((l) => !lessonDone(state, l.id)) || null;
+  return nextLessonFor(state.settings.goal, state.progress);
 }
 
 /** Variação de gastos nos últimos meses (usada no gráfico/insight de tendência). */

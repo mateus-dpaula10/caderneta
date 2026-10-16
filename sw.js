@@ -1,6 +1,6 @@
 /* Service worker da Caderneta: cache do app shell (offline-first).
    Ao mudar qualquer arquivo do app, aumente VERSION para os aparelhos baixarem a versão nova. */
-const VERSION = 'v1.2.0';
+const VERSION = 'v1.4.0';
 const CACHE = `caderneta-${VERSION}`;
 
 // Sem './index.html': servidores como o `npx serve` redirecionam /index.html -> /index,

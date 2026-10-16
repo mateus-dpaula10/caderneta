@@ -6,6 +6,7 @@ import { addMonths, currentMonth, daysInMonth, monthCmp, monthOf, monthsBetween,
 import { computeStreak, newlyUnlocked } from './gamification.js';
 import { GENERATED_TS, mergeProgress, nextStamp, normTs, sameContent, tsMs, unionSkipped } from './merge.js';
 import { textKey, txSignature } from './spreadsheet.js';
+import { isPaidWith } from './finance.js';
 
 export const SCHEMA_VERSION = 1;
 
@@ -235,7 +236,7 @@ export const deleteCategory = locked(async (id) => {
 
 // ---------- Lançamentos ----------
 function cleanTx(data) {
-  return {
+  const tx = {
     type: data.type === 'income' ? 'income' : 'expense',
     amount: Math.abs(Math.round(Number(data.amount) || 0)),
     date: data.date,
@@ -243,6 +244,12 @@ function cleanTx(data) {
     description: String(data.description || '').trim().slice(0, 120),
     nature: data.nature === 'fixo' ? 'fixo' : 'variavel',
   };
+  // `paid` só existe em despesa e só quando foi decidido (formulário, toque na lista, planilha).
+  // Sem o campo vale a regra da data (isPaid em js/finance.js); receita nunca leva o campo.
+  if (tx.type === 'expense' && typeof data.paid === 'boolean') tx.paid = data.paid;
+  // `paidWith` ('salario' | 'cartao'): de onde saiu a despesa. Sem o campo conta como salário (paidWithOf).
+  if (tx.type === 'expense' && isPaidWith(data.paidWith)) tx.paidWith = data.paidWith;
+  return tx;
 }
 
 function recordActivity() {
@@ -263,8 +270,12 @@ async function _addTransaction(data, { recurring = false } = {}) {
   const now = new Date().toISOString();
   let tx;
   if (recurring) {
+    // A série não guarda `paid`: só a 1ª ocorrência (a que a pessoa preencheu) leva a escolha do formulário;
+    // as próximas são geradas sem o campo e seguem a regra da data. Já `paidWith` (salário/cartão) é atributo
+    // fixo da conta: fica na série e as ocorrências geradas herdam.
+    const { paid, ...seriesBase } = base; // eslint-disable-line no-unused-vars
     const rec = {
-      id: uid(), ...base, day: Number(base.date.slice(8, 10)), startMonth: monthOf(base.date),
+      id: uid(), ...seriesBase, day: Number(base.date.slice(8, 10)), startMonth: monthOf(base.date),
       endMonth: null, skipped: [], createdAt: now,
     };
     state.recurrences.push(rec);
@@ -289,16 +300,34 @@ export const updateTransaction = locked(async (id, data, { applyToSeries = false
   const base = cleanTx({ ...tx, ...data });
   if (!(base.amount > 0)) throw new Error('Informe um valor maior que zero.');
   Object.assign(tx, base);
+  if (!('paid' in base)) delete tx.paid; // virou receita (ou `paid: undefined` explícito): volta para a regra da data
+  if (!('paidWith' in base)) delete tx.paidWith; // virou receita: receita não tem origem
   await persist('transactions', tx);
+  // `paid` nunca vai para a série: marcar ou editar uma ocorrência grava só nela. `paidWith` vai.
   if (applyToSeries && tx.seriesId) {
     const rec = state.recurrences.find((r) => r.id === tx.seriesId);
     if (rec) {
       Object.assign(rec, { type: base.type, amount: base.amount, categoryId: base.categoryId, description: base.description, nature: base.nature });
+      if ('paidWith' in base) rec.paidWith = base.paidWith; else delete rec.paidWith;
       await persist('recurrences', rec);
     }
   }
   recordActivity();
   await persist('meta', state.progress);
+  await afterChange('transactions');
+  return tx;
+});
+
+/**
+ * Marca uma despesa como paga (true) ou a pagar (false), pelo caminho normal de gravação
+ * (carimbo + fila de sincronização + redesenho). Numa ocorrência de série, grava só nela.
+ */
+export const setTransactionPaid = locked(async (id, paid) => {
+  const tx = state.transactions.find((t) => t.id === id);
+  if (!tx) throw new Error('Lançamento não encontrado.');
+  if (tx.type !== 'expense') throw new Error('Só despesas podem ser marcadas como pagas.');
+  tx.paid = Boolean(paid);
+  await persist('transactions', tx);
   await afterChange('transactions');
   return tx;
 });
@@ -403,6 +432,8 @@ async function _materialize(notify = true) {
         id, type: rec.type, amount: rec.amount, date: `${ym}-${day}`, categoryId: rec.categoryId,
         description: rec.description, nature: rec.nature, seriesId: rec.id, createdAt: new Date().toISOString(), updatedAt: GENERATED_TS,
       };
+      // Origem (salário/cartão) é herdada da série; `paid` nunca (cai na regra da data).
+      if (rec.type === 'expense' && isPaidWith(rec.paidWith)) tx.paidWith = rec.paidWith;
       created.push(tx);
       existing.add(id);
     }
@@ -536,9 +567,23 @@ export function validateBackup(json) {
     .map((c) => ({ ...c, name: c.name.slice(0, 60), budget: isCents(c.budget) ? c.budget : 0 }));
   const catIds = new Set(categories.map((c) => c.id));
   const transactions = keep(arr('transactions'), (t) => ['income', 'expense'].includes(t.type) && isCents(t.amount) && t.amount > 0
-    && ISO_DATE.test(t.date) && catIds.has(t.categoryId));
+    && ISO_DATE.test(t.date) && catIds.has(t.categoryId))
+    // `paid` só vale como boolean em despesa e `paidWith` só como 'salario'/'cartao' em despesa; qualquer outra
+    // coisa é descartada (o lançamento fica, nas regras padrão: data e salário).
+    .map((t) => {
+      const out = { ...t };
+      if ('paid' in out && !(out.type === 'expense' && typeof out.paid === 'boolean')) delete out.paid;
+      if ('paidWith' in out && !(out.type === 'expense' && isPaidWith(out.paidWith))) delete out.paidWith;
+      return out;
+    });
   const recurrences = keep(arr('recurrences'), (r) => ['income', 'expense'].includes(r.type) && isCents(r.amount)
-    && YM.test(r.startMonth) && (r.endMonth == null || YM.test(r.endMonth)) && catIds.has(r.categoryId));
+    && YM.test(r.startMonth) && (r.endMonth == null || YM.test(r.endMonth)) && catIds.has(r.categoryId))
+    .map((r) => {
+      const out = { ...r };
+      delete out.paid; // a série nunca guarda paid
+      if ('paidWith' in out && !(out.type === 'expense' && isPaidWith(out.paidWith))) delete out.paidWith;
+      return out;
+    });
   const goals = keep(arr('goals'), (g) => typeof g.name === 'string' && isCents(g.target) && isCents(g.saved));
   const meta = arr('meta').filter((m) => m && (m.id === 'settings' || m.id === 'progress'));
   if (!categories.length) throw new Error('O backup não tem categorias válidas.');

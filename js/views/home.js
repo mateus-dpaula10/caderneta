@@ -2,7 +2,7 @@
 import { state, dismissTip } from '../store.js';
 import { ui, monthNav } from '../ui.js';
 import { esc, fmtBRL, monthLabel, currentMonth, monthShort, fmtPct } from '../utils.js';
-import { GROUPS, lastMonths, monthSummary, referenceIncome } from '../finance.js';
+import { GROUPS, billsSummary, lastMonths, monthSummary, paidWithSummary, referenceIncome } from '../finance.js';
 import { buildInsights, nextLesson } from '../insights.js';
 import { categoryBars, monthBars, ring } from '../charts.js';
 import { computeStreak } from '../gamification.js';
@@ -40,6 +40,29 @@ function ruler(summary, income) {
       <div class="ruler-track">${segs}${ticks}${incomeMark}</div>
     </div>
     <ul class="ruler-legend">${legend}</ul>`;
+}
+
+/**
+ * Contas do mês: quanto ainda falta pagar e quanto já está atrasado. Só informa; os totais do mês
+ * (despesas, saldo, régua) continuam contando todas as despesas, pagas ou não.
+ */
+function billsLine(b) {
+  if (!b.expenseCount) return '';
+  if (!b.dueCount) return `<p class="hero-bills">${icon('check', { size: 16 })} Contas do mês: todas pagas.</p>`;
+  return `<p class="hero-bills">
+      <span>A pagar no mês: <strong>${fmtBRL(b.due)}</strong> (${b.dueCount} ${b.dueCount === 1 ? 'conta' : 'contas'})</span>
+      ${b.lateCount ? `<span class="hero-late">${icon('alert', { size: 16 })} Atrasadas: <strong>${fmtBRL(b.late)}</strong></span>` : ''}
+      <a href="#/lancamentos?pagamento=apagar">Ver contas</a>
+    </p>`;
+}
+
+/** De onde saíram as despesas do mês: salário x cartão (as duas somam o total de despesas, que não muda). */
+function sourceLine(w) {
+  if (!w.expenseCount) return '';
+  return `<dl class="hero-src" aria-label="De onde saíram as despesas">
+      <div><dt>Do salário</dt><dd>${fmtBRL(w.salario)}</dd></div>
+      <div><dt>${icon('card', { size: 16 })} No cartão</dt><dd>${w.cartao ? `<a href="#/lancamentos?saiu=cartao">${fmtBRL(w.cartao)}</a>` : fmtBRL(0)}</dd></div>
+    </dl>`;
 }
 
 function tipCard(t) {
@@ -103,6 +126,8 @@ export function render() {
       <div><dt>${icon('down', { size: 16 })} Despesas</dt><dd class="neg">${fmtBRL(s.expense)}</dd></div>
       <div><dt>Gastos fixos</dt><dd>${fmtBRL(s.fixed)}</dd></div>
     </dl>
+    ${sourceLine(paidWithSummary(state, ym))}
+    ${billsLine(billsSummary(state, ym))}
     <h3 class="ruler-title">Para onde foi a renda</h3>
     ${ruler(s, income)}
   </section>

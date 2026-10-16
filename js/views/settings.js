@@ -28,7 +28,8 @@ export function render() {
         <input id="s-name" name="name" maxlength="40" value="${esc(s.name)}" autocomplete="given-name"></label>
       ${moneyInput({ name: 'income', label: 'Renda mensal líquida', value: s.income ? centsToInput(s.income) : '', id: 's-income', hint: 'O que cai na conta por mês. Usado na régua 50/30/20 e nas dicas.' })}
       <label class="field" for="s-goal"><span class="field-label">Objetivo principal</span>
-        <select id="s-goal" name="goal">${Object.entries(GOAL_TYPES).map(([k, g]) => `<option value="${k}" ${k === s.goal ? 'selected' : ''}>${g.label}</option>`).join('')}</select></label>
+        <select id="s-goal" name="goal" aria-describedby="s-goal-hint">${Object.entries(GOAL_TYPES).map(([k, g]) => `<option value="${k}" ${k === s.goal ? 'selected' : ''}>${g.label}</option>`).join('')}</select>
+        <span class="field-hint" id="s-goal-hint">Define a ordem das lições em Aprender e a lição recomendada.</span></label>
       <div class="actions"><button class="btn primary" type="submit">Salvar perfil</button></div>
     </form>
   </section>

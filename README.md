@@ -41,6 +41,23 @@ Publique em qualquer hospedagem estática com HTTPS (Netlify, Vercel, GitHub Pag
 **Gestão**
 1. Lançamentos de receitas/despesas: valor, data, categoria, descrição, fixo/variável e **repetir todo mês**
    (as ocorrências são geradas automaticamente até o mês atual, sem duplicar; dá para parar a série).
+   - **Despesa paga ou a pagar**: switch "Pago" no formulário (só em despesa; em despesa nova começa ligado se a data é
+     hoje ou passada e desligado se é futura, e acompanha a data até a pessoa tocar nele) e um botão redondo em cada despesa
+     da lista que alterna pago/a pagar com um toque, sem abrir o formulário. Despesa não paga leva o selo "A pagar";
+     se a data já passou, "Atrasada". Filtro Todas / A pagar / Pagas em Lançamentos (só despesas). No Início:
+     "A pagar no mês: R$ X (N contas)" e "Atrasadas: R$ Y", com atalho para a lista filtrada, e uma dica quando há
+     contas atrasadas. Os totais (despesas, saldo, 50/30/20, orçamento) continuam contando todas as despesas, pagas ou não.
+   - Regra única (`isPaid` em `js/finance.js`): o campo `paid` (boolean) só é gravado na despesa quando alguém decide;
+     sem ele vale a data (hoje ou passada = paga, futura = a pagar). Por isso os dados antigos não precisaram de migração
+     e as ocorrências geradas pela recorrência não levam o campo; marcar/editar uma ocorrência grava `paid` só nela.
+   - **De onde saiu a despesa: salário ou cartão de crédito**: controle "Saiu do: Salário | Cartão de crédito" no
+     formulário (só em despesa; em despesa nova começa com o último valor usado neste aparelho, guardado no
+     `localStorage`; na 1ª vez, Salário). Na lista, despesa no cartão leva o selo "Cartão"; um seletor ao lado do de
+     categoria filtra "Saiu do salário" / "No cartão" (só despesas). No Início, o card do mês mostra "Do salário R$ X ·
+     No cartão R$ Y" (as duas somam as despesas do mês; totais e saldo não mudam).
+   - Regra única (`paidWithOf` em `js/finance.js`): campo `paidWith` ('salario' | 'cartao') só em despesa; sem ele conta
+     como salário (dados antigos não precisam de migração). Diferente de `paid`, é atributo fixo da conta: a série
+     (recorrência) guarda `paidWith`, as ocorrências geradas herdam e "aplicar aos próximos meses" leva junto.
 2. Categorias padrão editáveis (moradia, contas, mercado, transporte, saúde, educação, restaurantes, lazer,
    compras, assinaturas, dívidas, guardar e investir…), cada uma num grupo do 50/30/20. Categorias próprias são criadas
    em Ajustes → Categorias ou **direto no lançamento** (opção "+ Nova categoria…" no fim da lista de categorias: abre o
@@ -53,14 +70,21 @@ Publique em qualquer hospedagem estática com HTTPS (Netlify, Vercel, GitHub Pag
    guardar/retirar pode gerar o lançamento correspondente.
 6. Exportar/importar backup JSON (importação validada e atômica: arquivo inválido não altera nada).
 7. **Planilha do Excel** (Lançamentos → Planilha, ou Ajustes → Planilha do Excel):
-   - *Baixar planilha modelo (.xlsx)*: aba "Lançamentos" (Data, Tipo, Categoria, Descrição, Valor (R$), Natureza) com
-     cabeçalho em negrito e congelado, data dd/mm/aaaa, valor em moeda e listas suspensas em Tipo, Categoria (as categorias
-     da pessoa, da aba "Categorias") e Natureza; aba "Como preencher". Sem linhas de exemplo.
+   - *Baixar planilha modelo (.xlsx)*: aba "Lançamentos" (Data, Tipo, Categoria, Descrição, Valor (R$), Natureza, Pago,
+     Saiu do) com cabeçalho em negrito e congelado, data dd/mm/aaaa, valor em moeda e listas suspensas em Tipo, Categoria
+     (as categorias da pessoa, da aba "Categorias"), Natureza, Pago (Sim/Não) e Saiu do (Salário/Cartão de crédito);
+     aba "Como preencher". Sem linhas de exemplo.
+   - Coluna **Pago** (opcional, só em despesa): aceita Sim/Não, S/N, Pago, X (sem diferença de maiúscula/acento) e
+     VERDADEIRO/FALSO; vazia = regra da data (o campo não é gravado); em receita é ignorada.
+   - Coluna **Saiu do** (opcional, só em despesa): aceita Salário/S e Cartão/Cartão de crédito/Crédito/C (sem diferença de
+     maiúscula/acento); vazia = salário (o campo não é gravado); em receita é ignorada.
+   - Planilhas sem as colunas opcionais continuam valendo (as colunas são achadas pelo cabeçalho). A prévia mostra quantas
+     despesas entram como a pagar e quantas saíram no cartão.
    - *Importar planilha*: lê e valida tudo antes de gravar e mostra uma prévia (lançamentos a importar, categorias novas,
      linhas que já existem e linhas com erro, com número e motivo). Aceita data real do Excel ou texto dd/mm/aaaa, valor
      número ou texto ("1.234,56", "R$ 1.234,56"), Tipo/Natureza sem diferença de maiúscula/acento (Natureza vazia = Variável).
      Categoria casa pelo nome dentro do tipo; nome desconhecido vira categoria própria nova (ícone 🏷️, grupo "Desejos").
-     Linhas iguais a lançamentos já existentes (data, tipo, valor, categoria e descrição) são ignoradas: importar o mesmo
+     Linhas iguais a lançamentos já existentes (data, tipo, valor, categoria e descrição; "Pago" e "Saiu do" não entram na comparação) são ignoradas: importar o mesmo
      arquivo duas vezes não duplica. A gravação é um lote atômico (`importTransactions` no `store.js`): um redesenho e
      tudo entra na fila de sincronização de uma vez. Limites: 10 MB por arquivo, 5.000 linhas por importação.
 
@@ -68,7 +92,17 @@ Publique em qualquer hospedagem estática com HTTPS (Netlify, Vercel, GitHub Pag
 8. Trilha de 8 micro-aulas com quiz (3 perguntas cada): orçamento, reserva de emergência, dívidas e juros
    (rotativo/cheque especial), juros compostos, inflação, investimentos básicos (poupança, Tesouro Direto, CDB),
    consumo consciente e golpes financeiros. Algumas lições mostram um bloco "Com os seus números".
-9. Dicas contextuais geradas dos dados (déficit, orçamento estourado, categoria que subiu, peso das dívidas,
+   **A trilha segue o objetivo da pessoa** (`settings.goal`, escolhido na apresentação inicial): a tela Aprender abre com
+   "Para o seu objetivo: …", as lições essenciais desse objetivo na ordem certa e o progresso delas; abaixo, "Outras
+   lições" (nada some, só muda a ordem e o destaque). A lição recomendada (Aprender, Início e dicas) é a 1ª não concluída
+   dessa ordem, e as dicas que apontam para lições fora das essenciais vão para depois das outras do mesmo tom.
+   "Mudar objetivo" abre um seletor ali mesmo (o mesmo campo de Ajustes → Objetivo principal). O mapa objetivo → trilha
+   fica em `GOAL_TRACKS` (`js/lessons.js`):
+   - Organizar as contas: orçamento, consumo consciente, dívidas, reserva | depois golpes, inflação, juros compostos, investimentos.
+   - Reserva de emergência: reserva, orçamento, consumo consciente, inflação, investimentos | depois juros compostos, dívidas, golpes.
+   - Sair das dívidas: dívidas, orçamento, consumo consciente, golpes | depois reserva, juros compostos, inflação, investimentos.
+   - Começar a investir: juros compostos, inflação, reserva, investimentos, golpes | depois orçamento, consumo consciente, dívidas.
+9. Dicas contextuais geradas dos dados (déficit, contas atrasadas, orçamento estourado, categoria que subiu, peso das dívidas,
    reserva, metas com prazo, 50/30/20, sobra parada, hábito de registro).
 10. Simuladores: juros compostos (com gráfico), tempo até a meta, custo real do parcelamento (juros embutidos
     no "sem juros") e quitação de dívida (detecta quando o pagamento não cobre os juros).

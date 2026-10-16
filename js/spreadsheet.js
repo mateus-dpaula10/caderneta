@@ -23,11 +23,26 @@ const COLUMNS = [
   { key: 'description', header: 'Descrição', width: 36, aliases: ['descricao', 'historico'] },
   { key: 'amount', header: 'Valor (R$)', width: 15, aliases: ['valor (r$)', 'valor', 'valor r$'] },
   { key: 'nature', header: 'Natureza', width: 12, aliases: ['natureza'] },
+  // Opcional (planilhas antigas, sem esta coluna, continuam valendo): só conta em despesa.
+  { key: 'paid', header: 'Pago', width: 9, aliases: ['pago', 'paga', 'pago?'] },
+  // Opcional, só em despesa: de onde saiu o dinheiro. Vazio = salário (o campo não é gravado).
+  { key: 'paidWith', header: 'Saiu do', width: 20, aliases: ['saiu do', 'saiu de', 'saiu', 'pago com', 'forma de pagamento', 'origem'] },
 ];
+// Colunas opcionais: preenchidas sozinhas (sem os dados do lançamento) não fazem da linha um lançamento.
+const OPTIONAL_KEYS = new Set(['paid', 'paidWith']);
 
 const TYPE_LABEL = { expense: 'Despesa', income: 'Receita' };
 const TYPE_WORDS = { despesa: 'expense', gasto: 'expense', saida: 'expense', receita: 'income', entrada: 'income' };
 const NATURE_WORDS = { fixo: 'fixo', fixa: 'fixo', variavel: 'variavel' };
+const PAID_WORDS = {
+  sim: true, s: true, pago: true, paga: true, x: true,
+  nao: false, n: false, 'nao pago': false, 'nao paga': false, 'a pagar': false,
+};
+const PAID_WITH_WORDS = {
+  salario: 'salario', s: 'salario',
+  cartao: 'cartao', 'cartao de credito': 'cartao', 'cartao credito': 'cartao', credito: 'cartao', c: 'cartao',
+};
+const PAID_WITH_LABEL = { salario: 'Salário', cartao: 'Cartão de crédito' };
 
 const pad = (n) => String(n).padStart(2, '0');
 /** Chave de comparação de texto: sem maiúscula, sem acento, espaços colapsados. */
@@ -84,6 +99,15 @@ export function buildTemplate(ExcelJS, categories, { now = new Date() } = {}) {
     type: 'list', allowBlank: true, formulae: ['"Variável,Fixo"'],
     showErrorMessage: true, errorStyle: 'stop', errorTitle: 'Natureza', error: 'Escolha Variável ou Fixo (vazio vale como Variável).',
   });
+  ws.dataValidations.add(`G2:G${last}`, {
+    type: 'list', allowBlank: true, formulae: ['"Sim,Não"'],
+    showErrorMessage: true, errorStyle: 'stop', errorTitle: 'Pago', error: 'Escolha Sim ou Não, ou deixe vazio (vale a data).',
+  });
+  ws.dataValidations.add(`H2:H${last}`, {
+    type: 'list', allowBlank: true, formulae: [`"${PAID_WITH_LABEL.salario},${PAID_WITH_LABEL.cartao}"`],
+    showErrorMessage: true, errorStyle: 'stop', errorTitle: 'Saiu do',
+    error: 'Escolha Salário ou Cartão de crédito, ou deixe vazio (vale como Salário).',
+  });
 
   const hs = wb.addWorksheet(HELP_SHEET);
   hs.getColumn(1).width = 100;
@@ -98,6 +122,10 @@ export function buildTemplate(ExcelJS, categories, { now = new Date() } = {}) {
     ['Descrição: opcional (ex.: feira da semana). Até 120 caracteres.'],
     ['Valor (R$): sempre positivo, com centavos se houver (ex.: 1.234,56). O Tipo já diz se entrou ou saiu.'],
     ['Natureza: Fixo (repete todo mês, como aluguel) ou Variável. Vazio conta como Variável.'],
+    ['Pago: opcional, só para Despesa. Sim (já pagou) ou Não (conta a pagar). Vazio segue a data: data de hoje ou'],
+    ['   passada conta como paga, data futura fica "a pagar". Em Receita, esta coluna é ignorada.'],
+    ['Saiu do: opcional, só para Despesa. Salário ou Cartão de crédito (de onde saiu o dinheiro). Vazio conta'],
+    ['   como Salário. Em Receita, esta coluna é ignorada.'],
     [''],
     ['Para importar: na Caderneta, abra Lançamentos → Planilha (ou Ajustes → Planilha do Excel) → Importar planilha.'],
     ['Antes de gravar, o app mostra uma prévia: quantos lançamentos entram, categorias novas e linhas com erro.'],
@@ -135,7 +163,8 @@ function findDataSheet(wb) {
 
 /**
  * Lê as linhas da aba "Lançamentos" de um Workbook já carregado.
- * Retorna { rows: [{ row, date, type, category, description, amount, nature }], truncated }.
+ * Retorna { rows: [{ row, date, type, category, description, amount, nature, paid, paidWith }], truncated }
+ * (`paid`/`paidWith` são null se a planilha não tiver as colunas opcionais "Pago"/"Saiu do").
  * Os valores vêm crus (como estão na célula); quem valida é planImport. Lança erro se não houver aba/cabeçalho.
  */
 export function readSheetRows(wb) {
@@ -160,7 +189,8 @@ export function readSheetRows(wb) {
     if (r < 2 || truncated) return;
     const rec = { row: r };
     for (const c of COLUMNS) rec[c.key] = colOf[c.key] ? cellValue(row.getCell(colOf[c.key]).value) : null;
-    if (COLUMNS.every((c) => isBlank(rec[c.key]))) return; // linha totalmente vazia (ou só com formatação)
+    // Linha vazia (ou só com formatação, ou só com "Pago"/"Saiu do" escolhido na lista, sem lançamento): ignora.
+    if (COLUMNS.every((c) => OPTIONAL_KEYS.has(c.key) || isBlank(rec[c.key]))) return;
     if (rows.length >= MAX_IMPORT_ROWS) { truncated = true; return; }
     rows.push(rec);
   });
@@ -210,7 +240,31 @@ export function parseSheetNature(v) {
   return NATURE_WORDS[textKey(v)] || null;
 }
 
-/** Assinatura usada para não duplicar: mesma data, tipo, valor, categoria e descrição (sem maiúscula/acento). */
+/**
+ * Coluna "Pago": true/false; null se vazia (vale a regra da data e o campo não é gravado);
+ * undefined se não reconhecida. Aceita Sim/Não, S/N, Pago, X (sem maiúscula/acento) e VERDADEIRO/FALSO do Excel.
+ */
+export function parseSheetPaid(v) {
+  if (isBlank(v)) return null;
+  if (typeof v === 'boolean') return v;
+  const k = textKey(v);
+  return k in PAID_WORDS ? PAID_WORDS[k] : undefined;
+}
+
+/**
+ * Coluna "Saiu do": 'salario' | 'cartao'; null se vazia (conta como salário e o campo não é gravado);
+ * undefined se não reconhecida. Aceita Salário/S e Cartão/Cartão de crédito/Crédito/C, sem maiúscula/acento.
+ */
+export function parseSheetPaidWith(v) {
+  if (isBlank(v)) return null;
+  const k = textKey(v);
+  return k in PAID_WITH_WORDS ? PAID_WITH_WORDS[k] : undefined;
+}
+
+/**
+ * Assinatura usada para não duplicar: mesma data, tipo, valor, categoria e descrição (sem maiúscula/acento).
+ * NÃO inclui `paid` nem `paidWith`: a mesma conta marcada como paga (ou trocada de origem) continua sendo a mesma linha.
+ */
 export const txSignature = (t) => [t.date, t.type, t.amount, t.categoryId, textKey(t.description)].join('|');
 
 // ---------- Validação + plano de importação ----------
@@ -220,7 +274,7 @@ export const txSignature = (t) => [t.date, t.type, t.amount, t.categoryId, textK
  *  - categories/transactions: os dados atuais da pessoa (para casar categorias e achar duplicados);
  *  - newId: gerador de id para as categorias novas.
  * Retorna {
- *   transactions: [{ row, type, amount, date, categoryId, description, nature }],  // a importar
+ *   transactions: [{ row, type, amount, date, categoryId, description, nature, paid?, paidWith? }],  // a importar
  *   newCategories: [{ id, name, type, icon, group }],                              // a criar
  *   duplicates: [número da linha...], errors: [{ row, reason }], total: linhas lidas (não vazias)
  * }
@@ -259,6 +313,12 @@ export function planImport(rows, { categories, transactions }, { newId }) {
     const nature = parseSheetNature(r.nature);
     if (!nature) problems.push(`natureza "${String(r.nature).trim()}" não reconhecida (use Fixo ou Variável)`);
 
+    // Pago só conta em despesa; em receita a coluna é ignorada (mesmo com valor estranho).
+    const paid = type === 'expense' ? parseSheetPaid(r.paid) : null;
+    if (paid === undefined) problems.push(`pago "${String(r.paid).trim()}" não reconhecido (use Sim ou Não, ou deixe vazio)`);
+    const paidWith = type === 'expense' ? parseSheetPaidWith(r.paidWith) : null;
+    if (paidWith === undefined) problems.push(`"saiu do" "${String(r.paidWith).trim()}" não reconhecido (use Salário ou Cartão de crédito, ou deixe vazio)`);
+
     const catName = isBlank(r.category) ? '' : String(r.category).trim().slice(0, 40);
     const catKey = textKey(catName);
     let category = null;
@@ -285,6 +345,8 @@ export function planImport(rows, { categories, transactions }, { newId }) {
       row: r.row, type, amount, date, categoryId: category.id,
       description: isBlank(r.description) ? '' : String(r.description).trim().slice(0, 120), nature,
     };
+    if (typeof paid === 'boolean') tx.paid = paid; // vazio: sem o campo, vale a regra da data
+    if (paidWith) tx.paidWith = paidWith; // vazio: sem o campo, conta como salário
     const sig = txSignature(tx);
     const left = existing.get(sig) || 0;
     if (left > 0) { existing.set(sig, left - 1); out.duplicates.push(r.row); continue; }

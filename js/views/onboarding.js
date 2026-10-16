@@ -5,8 +5,6 @@ import { esc, parseMoney, centsToInput, todayISO, currentMonth, fmtBRL } from '.
 import { GOAL_TYPES, suggestBudgets } from '../finance.js';
 import { DISCLAIMER } from '../lessons.js';
 
-const GOAL_ICONS = { organizar: '🧾', reserva: '🛟', dividas: '💳', investir: '🌱' };
-
 export function renderOnboarding(root, { onDone, onSignIn }) {
   const s = state.settings;
   const hasIncomeTx = state.transactions.some((t) => t.type === 'income');
@@ -40,7 +38,7 @@ export function renderOnboarding(root, { onDone, onSignIn }) {
         <fieldset class="choice-grid"><legend class="sr-only">Objetivo principal</legend>
           ${Object.entries(GOAL_TYPES).map(([k, g]) => `<label class="choice">
             <input type="radio" name="goal" value="${k}" ${k === s.goal ? 'checked' : ''}>
-            <span><span class="choice-icon" aria-hidden="true">${GOAL_ICONS[k]}</span>${g.label}</span></label>`).join('')}
+            <span><span class="choice-icon" aria-hidden="true">${g.icon}</span>${g.label}</span></label>`).join('')}
         </fieldset>
       </section>
 

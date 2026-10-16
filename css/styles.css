@@ -256,6 +256,21 @@ input, select, textarea { font-size: max(16px, 1em); }
 .hero-split dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; font-size: clamp(.9rem, 3.6vw, 1.05rem); overflow-wrap: anywhere; }
 .hero-split dd.pos { color: #b7f5d3; }
 .hero-split dd.neg { color: #ffc9c4; }
+/* Contas a pagar do mês (texto claro sobre o roxo, como o resto do hero) */
+.hero-bills {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; margin: -6px 0 16px; padding: 8px 12px;
+  border-radius: var(--radius-sm); background: rgba(255, 255, 255, .12); font-size: .92rem;
+}
+.hero-bills strong { font-variant-numeric: tabular-nums; }
+.hero-bills .icon { display: inline-block; vertical-align: -3px; }
+.hero-late { color: #ffc9c4; }
+/* Despesas do mês por origem (salário x cartão), compacto, logo abaixo dos totais */
+.hero-src { display: flex; flex-wrap: wrap; gap: 4px 20px; margin: -8px 0 14px; font-size: .9rem; }
+.hero-src div { display: flex; align-items: center; gap: 6px; }
+.hero-src dt { opacity: .85; display: flex; align-items: center; gap: 4px; }
+.hero-src dd { margin: 0; font-weight: 700; font-variant-numeric: tabular-nums; }
+.hero-src a { color: inherit; text-decoration-color: var(--accent); }
+.hero-bills a { color: var(--accent); font-weight: 700; margin-left: auto; }
 .ruler-title { font-size: .85rem; font-weight: 600; opacity: .85; margin-bottom: 8px; }
 .ruler-track {
   position: relative; display: flex; gap: 2px; height: 18px; border-radius: 6px;
@@ -391,6 +406,13 @@ input, select, textarea { font-size: max(16px, 1em); }
 .meter.wide { grid-column: 1 / -1; background: color-mix(in srgb, var(--bg) 25%, transparent); }
 .meter.wide span { background: var(--accent); }
 
+/* Trilha do objetivo (Aprender) */
+.goal-track .block-head { align-items: flex-start; flex-wrap: wrap; }
+.goal-track h2 { line-height: 1.3; }
+.goal-kicker { display: block; font-size: .85rem; font-weight: 600; }
+.goal-progress { margin: 0 0 6px; color: var(--muted); font-size: .92rem; }
+.goal-progress strong { color: var(--ink); }
+.goal-track .meter { margin-bottom: 12px; }
 .trail { list-style: none; margin: 0; padding: 0; position: relative; }
 .trail::before { content: ""; position: absolute; left: 19px; top: 24px; bottom: 24px; width: 2px; background: var(--line); }
 .trail-item a { position: relative; display: flex; gap: 14px; padding: 10px 6px 10px 0; color: var(--ink); text-decoration: none; border-radius: var(--radius-sm); }
@@ -450,6 +472,11 @@ input, select, textarea { font-size: max(16px, 1em); }
 .search input { border: 0; background: transparent; flex: 1; min-height: 44px; outline: none; color: var(--ink); min-width: 0; }
 .search:focus-within { outline: 3px solid var(--focus); outline-offset: 1px; }
 @media (min-width: 720px) { .filters { grid-template-columns: auto 1fr auto; align-items: center; } }
+/* Categoria + "Saiu do": lado a lado, dividindo a linha no celular */
+.filter-selects { display: flex; gap: 8px; min-width: 0; }
+.filter-selects select.compact { flex: 1 1 0; min-width: 0; padding-inline: 10px; }
+.filter-selects #tx-from-filter { flex: 0 0 auto; }
+@media (min-width: 720px) { .filter-selects select.compact { flex: 0 1 auto; } }
 .list-summary { color: var(--muted); font-size: .9rem; }
 .list-summary span { font-weight: 700; font-variant-numeric: tabular-nums; margin-left: 6px; }
 .day { margin-bottom: 14px; }
@@ -464,6 +491,23 @@ input, select, textarea { font-size: max(16px, 1em); }
 .tx-desc { font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tx-meta { font-size: .82rem; color: var(--muted); }
 .tx-amount { font-weight: 750; font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* Pago / a pagar: botão separado à direita da linha (não fica dentro do botão que abre o formulário). */
+.tx-row { display: flex; align-items: stretch; }
+.tx-row > .tx { flex: 1; min-width: 0; padding-right: 6px; }
+.pay-toggle, .pay-slot { flex: none; width: 52px; }
+.pay-toggle { display: grid; place-items: center; min-height: 44px; padding: 0; background: none; border: 0; cursor: pointer; color: var(--muted); }
+.pay-toggle:hover { background: var(--surface-2); }
+.pay-toggle:focus-visible { outline-offset: -4px; }
+.pay-toggle:disabled { cursor: progress; opacity: .6; }
+.pay-dot { width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--muted); display: grid; place-items: center; }
+.pay-toggle.is-paid .pay-dot { background: var(--pos); border-color: var(--pos); color: var(--surface); }
+.pay-toggle.is-late .pay-dot { border-color: var(--neg); border-width: 2.5px; }
+.pay-toggle.is-paid .icon { stroke-width: 3; }
+.tag-due { background: var(--warn-bg); color: var(--warn-ink); }
+.tag-late { background: var(--alert-bg); color: var(--alert-ink); }
+.tag-card { background: var(--info-bg); color: var(--info-ink); }
+.due-sum { color: var(--warn-ink); white-space: nowrap; }
+.chip-groups { display: flex; flex-wrap: wrap; gap: 8px 16px; }
 
 /* ---------- Orçamento ---------- */
 .budget-groups { margin-top: 14px; }
@@ -509,6 +553,27 @@ select.compact { min-height: 44px; width: auto; max-width: 100%; }
 .check { display: flex; gap: 10px; align-items: flex-start; margin: 10px 0; cursor: pointer; }
 .check input { width: 20px; height: 20px; margin-top: 2px; accent-color: var(--primary); flex: none; }
 .check small { color: var(--muted); }
+/* Interruptor: checkbox de verdade (role="switch") escondido; a linha inteira é o rótulo e a área de toque. */
+.switch {
+  position: relative; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  min-height: 56px; padding: 8px 14px; margin: 0 0 14px; cursor: pointer;
+  border: 1px solid var(--line); border-radius: 12px; background: var(--surface);
+}
+.switch-text { display: grid; gap: 2px; min-width: 0; }
+.switch-label { font-weight: 650; font-size: 1rem; }
+.switch input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; pointer-events: none; }
+.switch-track {
+  position: relative; flex: none; width: 52px; height: 32px; border-radius: 999px;
+  background: var(--muted); transition: background-color .15s;
+}
+.switch-track::after {
+  content: ""; position: absolute; top: 3px; left: 3px; width: 26px; height: 26px; border-radius: 50%;
+  background: var(--surface); box-shadow: 0 1px 3px rgba(0, 0, 0, .3); transition: transform .15s;
+}
+.switch input:checked + .switch-track { background: var(--pos); }
+.switch input:checked + .switch-track::after { transform: translateX(20px); }
+.switch input:focus-visible + .switch-track { outline: 3px solid var(--focus); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .switch-track, .switch-track::after { transition: none; } }
 .segmented { display: flex; flex-wrap: wrap; gap: 6px; border: 0; padding: 0; margin: 0 0 14px; }
 .segmented legend { width: 100%; margin-bottom: 6px; padding: 0; }
 .segmented label { flex: 1; min-width: max-content; }
@@ -520,6 +585,7 @@ select.compact { min-height: 44px; width: auto; max-width: 100%; }
 .segmented.small span { min-height: 40px; font-size: .92rem; }
 .segmented input:checked + span { background: var(--ink); color: var(--bg); border-color: var(--ink); }
 .segmented input:focus-visible + span { outline: 3px solid var(--focus); outline-offset: 2px; }
+.segmented.paid-with span { font-size: 1rem; }
 .form-error { color: var(--neg); font-weight: 600; font-size: .92rem; }
 .actions { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; margin-top: 12px; }
 .actions.left { justify-content: flex-start; }
@@ -620,6 +686,10 @@ dialog.sheet[open] { animation: sheet-in .22s cubic-bezier(.2, .8, .2, 1); }
 @media (forced-colors: active) {
   .ruler-seg, .cat-bar-fill, .meter span { background: CanvasText; }
   .btn, .chip, .tab { border: 1px solid ButtonText; }
+  .switch-track { border: 1px solid ButtonText; background: Canvas; }
+  .switch-track::after { background: ButtonText; }
+  .switch input:checked + .switch-track { background: Highlight; }
+  .pay-toggle.is-paid .pay-dot { background: Highlight; border-color: Highlight; color: HighlightText; }
 }
 @media print {
   .nav, .fab, .toasts, .month-nav button { display: none !important; }

@@ -1,15 +1,35 @@
-// Aprender: trilha de micro-aulas, quiz, conquistas e sequência.
-import { state, saveLessonResult } from '../store.js';
+// Aprender: trilha de micro-aulas na ordem do objetivo da pessoa, quiz, conquistas e sequência.
+import { state, saveLessonResult, saveSettings } from '../store.js';
 import { esc, fmtBRL, fmtPct, currentMonth } from '../utils.js';
-import { LESSONS, lessonById, DISCLAIMER } from '../lessons.js';
+import { LESSONS, lessonById, DISCLAIMER, goalTrack, nextLessonFor } from '../lessons.js';
 import { ACHIEVEMENTS, computeStreak } from '../gamification.js';
 import { GOAL_TYPES, avgMonthlyExpense } from '../finance.js';
-import { toast } from '../ui.js';
+import { openDialog, sheetHeader, toast } from '../ui.js';
 import { icon } from '../icons.js';
 
+/** Lista numerada de lições; `start` continua a numeração entre as duas listas. */
+function trailList(lessons, { start = 1, recommended } = {}) {
+  return `<ol class="trail" ${start > 1 ? `start="${start}"` : ''}>${lessons.map((l, i) => {
+    const p = state.progress.lessons[l.id];
+    return `<li class="trail-item ${p?.done ? 'is-done' : ''}">
+          <a href="#/aprender/${l.id}">
+            <span class="trail-step" aria-hidden="true">${p?.done ? icon('check', { size: 18 }) : start + i}</span>
+            <span class="trail-text">
+              <span class="trail-title">${l.icon} ${esc(l.title)}</span>
+              <span class="muted">${esc(l.summary)}</span>
+              <span class="trail-meta">${l.minutes} min${p?.done ? `, quiz: ${p.best}/${p.total}` : ''}${l.id === recommended ? ' <span class="tag accent">Recomendada para você</span>' : ''}</span>
+            </span>
+          </a></li>`;
+  }).join('')}</ol>`;
+}
+
 function trail() {
-  const recommended = GOAL_TYPES[state.settings.goal]?.lesson;
+  const track = goalTrack(state.settings.goal);
+  const goal = GOAL_TYPES[track.goal];
+  const recommended = nextLessonFor(track.goal, state.progress)?.id;
   const done = LESSONS.filter((l) => state.progress.lessons[l.id]?.done).length;
+  const essDone = track.essentials.filter((l) => state.progress.lessons[l.id]?.done).length;
+  const essTotal = track.essentials.length;
   const streak = computeStreak(state.progress.activity);
   const unlocked = state.progress.achievements || {};
 
@@ -20,24 +40,24 @@ function trail() {
       <div><span class="big">${done}<small>/${LESSONS.length}</small></span><span>lições concluídas</span></div>
       <div><span class="big">${streak}</span><span>${streak === 1 ? 'dia seguido' : 'dias seguidos'} registrando</span></div>
       <div><span class="big">${Object.keys(unlocked).length}<small>/${ACHIEVEMENTS.length}</small></span><span>conquistas</span></div>
-      <div class="meter wide" role="progressbar" aria-label="Progresso da trilha" aria-valuemin="0" aria-valuemax="${LESSONS.length}" aria-valuenow="${done}">
+      <div class="meter wide" role="progressbar" aria-label="Progresso de todas as lições" aria-valuemin="0" aria-valuemax="${LESSONS.length}" aria-valuenow="${done}">
         <span style="width:${((done / LESSONS.length) * 100).toFixed(1)}%"></span></div>
     </section>
 
-    <section class="block" aria-labelledby="trail-title">
-      <div class="block-head"><h2 id="trail-title">Trilha</h2></div>
-      <ol class="trail">${LESSONS.map((l, i) => {
-    const p = state.progress.lessons[l.id];
-    return `<li class="trail-item ${p?.done ? 'is-done' : ''}">
-          <a href="#/aprender/${l.id}">
-            <span class="trail-step" aria-hidden="true">${p?.done ? icon('check', { size: 18 }) : i + 1}</span>
-            <span class="trail-text">
-              <span class="trail-title">${l.icon} ${esc(l.title)}</span>
-              <span class="muted">${esc(l.summary)}</span>
-              <span class="trail-meta">${l.minutes} min${p?.done ? `, quiz: ${p.best}/${p.total}` : ''}${l.id === recommended && !p?.done ? ' <span class="tag accent">Recomendada para você</span>' : ''}</span>
-            </span>
-          </a></li>`;
-  }).join('')}</ol>
+    <section class="block goal-track" aria-labelledby="trail-title">
+      <div class="block-head">
+        <h2 id="trail-title"><span class="muted goal-kicker">Para o seu objetivo:</span> <span aria-hidden="true">${goal.icon}</span> ${esc(goal.label)}</h2>
+        <button type="button" class="btn ghost small" data-change-goal aria-haspopup="dialog">Mudar objetivo</button>
+      </div>
+      <p class="goal-progress"><strong>${essDone} de ${essTotal}</strong> lições essenciais concluídas${essDone === essTotal ? '. Trilha do objetivo completa!' : ''}</p>
+      <div class="meter" role="progressbar" aria-label="Progresso da trilha do objetivo" aria-valuemin="0" aria-valuemax="${essTotal}" aria-valuenow="${essDone}">
+        <span style="width:${((essDone / essTotal) * 100).toFixed(1)}%"></span></div>
+      ${trailList(track.essentials, { recommended })}
+    </section>
+
+    <section class="block" aria-labelledby="others-title">
+      <div class="block-head"><h2 id="others-title">Outras lições</h2></div>
+      ${trailList(track.others, { start: essTotal + 1, recommended })}
     </section>
 
     <section class="block" aria-labelledby="ach-title">
@@ -55,8 +75,10 @@ function trail() {
 }
 
 function lessonPage(l) {
-  const idx = LESSONS.indexOf(l);
-  const next = LESSONS[idx + 1];
+  // Numeração e "próxima lição" seguem a ordem da trilha do objetivo (a mesma da tela Aprender).
+  const order = goalTrack(state.settings.goal).order;
+  const idx = order.findIndex((x) => x.id === l.id);
+  const next = order[idx + 1];
   const p = state.progress.lessons[l.id];
   const ctx = {
     income: state.settings.income || 0,
@@ -98,9 +120,45 @@ export function render({ params, sub }) {
   return l ? lessonPage(l) : trail();
 }
 
+/**
+ * Seletor de objetivo (o mesmo campo de Ajustes → Objetivo principal). Ao salvar, o redesenho
+ * (onChange 'settings') atualiza a trilha, a lição recomendada e as dicas.
+ */
+function openGoalPicker(opener) {
+  const current = goalTrack(state.settings.goal).goal;
+  const dlg = openDialog(`<form class="sheet-body" novalidate>
+    ${sheetHeader('Mudar objetivo')}
+    <p class="lead">A ordem das lições e a lição recomendada seguem o seu objetivo. Nenhuma lição some e o progresso continua.</p>
+    <fieldset class="choice-grid"><legend class="sr-only">Objetivo principal</legend>
+      ${Object.entries(GOAL_TYPES).map(([k, g]) => `<label class="choice">
+        <input type="radio" name="goal" value="${k}" ${k === current ? 'checked' : ''}>
+        <span><span class="choice-icon" aria-hidden="true">${g.icon}</span>${esc(g.label)}</span></label>`).join('')}
+    </fieldset>
+    <div class="actions">
+      <button type="button" class="btn ghost" data-close>Cancelar</button>
+      <button type="submit" class="btn primary">Salvar objetivo</button>
+    </div>
+  </form>`, { onClose: () => (document.querySelector('[data-change-goal]') || opener)?.focus() });
+  dlg.querySelector('input[name="goal"]:checked')?.focus();
+  dlg.querySelector('form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const goal = e.target.goal.value;
+    dlg.close();
+    if (goal && goal !== current) {
+      await saveSettings({ goal });
+      document.querySelector('[data-change-goal]')?.focus(); // a tela foi redesenhada: foco no botão novo
+      toast(`Objetivo: ${esc(GOAL_TYPES[goal].label.toLowerCase())}. A trilha foi reorganizada.`, { tone: 'good' });
+    }
+  });
+}
+
 export function mount(root, { sub }) {
   const l = sub ? lessonById(sub) : null;
-  if (!l) return;
+  if (!l) {
+    const btn = root.querySelector('[data-change-goal]');
+    btn?.addEventListener('click', () => openGoalPicker(btn));
+    return;
+  }
   const form = root.querySelector('#quiz');
   form.addEventListener('submit', async (e) => {
     e.preventDefault();

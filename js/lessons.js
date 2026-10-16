@@ -497,3 +497,39 @@ export const LESSONS = [
 ];
 
 export const lessonById = (id) => LESSONS.find((l) => l.id === id);
+
+// ---------- Trilha por objetivo ----------
+// O objetivo vem de settings.goal (os mesmos de GOAL_TYPES em js/finance.js: escolhido na apresentação inicial,
+// editável em Ajustes ou no próprio Aprender). `essentials`: as lições essenciais para o objetivo, na ordem em que
+// faz sentido estudar; `others`: o resto, também em ordem. Nada some: só muda a ordem e o destaque.
+// A 1ª essencial de cada objetivo é a "lição do objetivo" usada nas dicas.
+export const DEFAULT_GOAL = 'organizar';
+export const GOAL_TRACKS = {
+  // Organizar: saber para onde vai o dinheiro, cortar o que escapa, não deixar a dívida crescer e montar o colchão.
+  organizar: { essentials: ['orcamento', 'consumo', 'dividas', 'reserva'], others: ['golpes', 'inflacao', 'juros-compostos', 'investimentos'] },
+  // Reserva: o porquê e o quanto, de onde tirar (orçamento e consumo), por que não deixar parada (inflação) e onde guardar.
+  reserva: { essentials: ['reserva', 'orcamento', 'consumo', 'inflacao', 'investimentos'], others: ['juros-compostos', 'dividas', 'golpes'] },
+  // Dívidas: entender os juros e priorizar, achar folga no orçamento, cortar gastos e escapar do "empréstimo fácil" falso.
+  dividas: { essentials: ['dividas', 'orcamento', 'consumo', 'golpes'], others: ['reserva', 'juros-compostos', 'inflacao', 'investimentos'] },
+  // Investir: como o dinheiro cresce (e perde valor), a base segura antes de arriscar, as opções básicas e as pirâmides.
+  investir: { essentials: ['juros-compostos', 'inflacao', 'reserva', 'investimentos', 'golpes'], others: ['orcamento', 'consumo', 'dividas'] },
+};
+
+/**
+ * Trilha do objetivo: { goal, essentials: [lição], others: [lição], order: [lição] }.
+ * Objetivo desconhecido usa o padrão. Lição que não estiver no mapa entra no fim de `others` (nunca some).
+ */
+export function goalTrack(goal) {
+  const key = GOAL_TRACKS[goal] ? goal : DEFAULT_GOAL;
+  const t = GOAL_TRACKS[key];
+  const seen = new Set();
+  const pick = (ids) => ids.map(lessonById).filter((l) => l && !seen.has(l.id) && seen.add(l.id));
+  const essentials = pick(t.essentials);
+  const others = pick([...t.others, ...LESSONS.map((l) => l.id)]);
+  return { goal: key, essentials, others, order: [...essentials, ...others] };
+}
+
+/** Próxima lição recomendada: a 1ª não concluída na ordem da trilha do objetivo (essenciais primeiro); null se fez todas. */
+export function nextLessonFor(goal, progress) {
+  return goalTrack(goal).order.find((l) => !progress?.lessons?.[l.id]?.done) || null;
+}

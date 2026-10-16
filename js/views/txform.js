@@ -2,12 +2,21 @@
 import { state, addTransaction, updateTransaction, deleteTransaction, stopRecurrence, recurrenceById, categoryById } from '../store.js';
 import { openDialog, sheetHeader, toast, moneyInput, confirmDialog } from '../ui.js';
 import { centsToInput, esc, fmtBRL, monthOf, parseMoney, todayISO, monthLabel, currentMonth, monthCmp } from '../utils.js';
-import { budgetStatus } from '../finance.js';
+import { budgetStatus, hasPaidChoice, isPaid, isPaidWith, paidWithOf } from '../finance.js';
 import { icon } from '../icons.js';
 import { openCategoryForm } from './category-form.js';
 
 // Valor especial da última opção do select: abre o formulário de categoria por cima do lançamento.
 const NEW_CAT = '__nova__';
+
+// "Saiu do" de despesa nova começa com o último valor usado neste aparelho (conveniência local, não sincroniza).
+const LAST_PAID_WITH_KEY = 'caderneta:lastPaidWith';
+function lastPaidWith() {
+  try { const v = localStorage.getItem(LAST_PAID_WITH_KEY); return isPaidWith(v) ? v : 'salario'; } catch { return 'salario'; }
+}
+function rememberPaidWith(v) {
+  try { localStorage.setItem(LAST_PAID_WITH_KEY, v); } catch { /* sem armazenamento: só não lembra */ }
+}
 
 function categoryOptions(type, selected) {
   return `${state.categories
@@ -21,6 +30,10 @@ export function openTxForm({ tx = null, type = 'expense', date } = {}) {
   const t = tx || { type, amount: null, date: date || todayISO(), categoryId: type === 'income' ? 'salario' : 'alimentacao', description: '', nature: 'variavel' };
   const rec = tx?.seriesId ? recurrenceById(tx.seriesId) : null;
   const recActive = rec && (!rec.endMonth || monthCmp(rec.endMonth, currentMonth()) > 0);
+  // Valor inicial do "Pago": na edição, o que isPaid diz; em despesa nova, ligado se a data é hoje ou passada.
+  const paidStart = isPaid({ ...t, type: 'expense' });
+  // "Saiu do": na edição de despesa, o que paidWithOf diz; senão, o último usado (1ª vez: Salário).
+  const withStart = editing && tx.type === 'expense' ? paidWithOf(tx) : lastPaidWith();
 
   const dlg = openDialog(`
     <form class="sheet-body tx-form" novalidate>
@@ -39,6 +52,17 @@ export function openTxForm({ tx = null, type = 'expense', date } = {}) {
         <label class="field" for="tx-date"><span class="field-label">Data</span>
           <input id="tx-date" name="date" type="date" value="${esc(t.date)}" required></label>
       </div>
+      <fieldset class="segmented paid-with" data-paid-with-row ${t.type === 'expense' ? '' : 'hidden'}>
+        <legend class="switch-label">Saiu do</legend>
+        <label><input type="radio" name="paidWith" value="salario" ${withStart === 'salario' ? 'checked' : ''}><span>Salário</span></label>
+        <label><input type="radio" name="paidWith" value="cartao" ${withStart === 'cartao' ? 'checked' : ''}><span>${icon('card', { size: 18 })} Cartão de crédito</span></label>
+      </fieldset>
+      <label class="switch" for="tx-paid" data-paid-row ${t.type === 'expense' ? '' : 'hidden'}>
+        <span class="switch-text"><span class="switch-label">Pago</span>
+          <small class="field-hint" id="tx-paid-hint">Desligado, a despesa fica como "A pagar" na lista.</small></span>
+        <input id="tx-paid" name="paid" type="checkbox" role="switch" aria-describedby="tx-paid-hint" ${paidStart ? 'checked' : ''}>
+        <span class="switch-track" aria-hidden="true"></span>
+      </label>
       <fieldset class="segmented small" aria-label="Natureza do gasto">
         <legend class="field-label">Esse valor é</legend>
         <label><input type="radio" name="nature" value="variavel" ${t.nature !== 'fixo' ? 'checked' : ''}><span>Variável</span></label>
@@ -62,12 +86,26 @@ export function openTxForm({ tx = null, type = 'expense', date } = {}) {
   const catSel = form.querySelector('#tx-cat');
   const showError = (msg) => { err.textContent = msg; err.hidden = false; };
 
+  const paidRow = form.querySelector('[data-paid-row]');
+  const withRow = form.querySelector('[data-paid-with-row]');
+  const paidInput = form.querySelector('#tx-paid');
+  const dateInput = form.querySelector('#tx-date');
+  // Enquanto a pessoa não tocar no switch, o padrão acompanha a data (hoje/passada = pago; futura = a pagar).
+  // Registro que já tem `paid` gravado: a escolha feita antes vale desde o início.
+  let paidTouched = editing && hasPaidChoice(tx);
+  paidInput.addEventListener('change', () => { paidTouched = true; });
+  dateInput.addEventListener('change', () => {
+    if (!paidTouched && /^\d{4}-\d{2}-\d{2}$/.test(dateInput.value)) paidInput.checked = dateInput.value <= todayISO();
+  });
+
   // Última categoria de verdade escolhida: volta para ela se a pessoa desistir de criar uma nova.
   let lastCat = catSel.value;
   form.querySelectorAll('input[name="type"]').forEach((r) => r.addEventListener('change', () => {
     const newType = form.type.value;
     catSel.innerHTML = categoryOptions(newType, newType === 'income' ? 'salario' : 'alimentacao');
     lastCat = catSel.value;
+    paidRow.hidden = newType !== 'expense'; // receita não tem pago/a pagar
+    withRow.hidden = newType !== 'expense'; // nem origem (salário/cartão)
   }));
   catSel.addEventListener('change', () => {
     if (catSel.value !== NEW_CAT) { lastCat = catSel.value; return; }
@@ -96,6 +134,10 @@ export function openTxForm({ tx = null, type = 'expense', date } = {}) {
       type: form.type.value, amount, date: form.date.value, categoryId: form.categoryId.value,
       description: form.description.value, nature: form.nature.value,
     };
+    if (data.type === 'expense') {
+      data.paid = paidInput.checked;
+      data.paidWith = isPaidWith(form.paidWith.value) ? form.paidWith.value : 'salario';
+    }
     const ym = monthOf(data.date);
     const before = new Map(budgetStatus(state, ym).map((b) => [b.category.id, b.level]));
     try {
@@ -107,6 +149,7 @@ export function openTxForm({ tx = null, type = 'expense', date } = {}) {
         toast(`${data.type === 'income' ? 'Receita' : 'Despesa'} de ${fmtBRL(amount)} adicionada.`, { tone: 'good' });
       }
       dlg.close();
+      if (data.type === 'expense') rememberPaidWith(data.paidWith);
       // Alerta de orçamento: avisa só quando a categoria muda de nível com este lançamento.
       const after = budgetStatus(state, ym).find((b) => b.category.id === data.categoryId);
       if (data.type === 'expense' && after && after.level !== 'ok' && before.get(data.categoryId) !== after.level) {

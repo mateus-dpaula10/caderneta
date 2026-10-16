@@ -1,5 +1,5 @@
 // Cálculos puros sobre os dados (sem efeitos colaterais). Valores em centavos.
-import { addMonths, monthOf, sum } from './utils.js';
+import { addMonths, monthOf, sum, todayISO } from './utils.js';
 
 export const GROUPS = {
   necessidades: { label: 'Necessidades', share: 0.5, hint: 'Moradia, contas, mercado, transporte, saúde' },
@@ -7,15 +7,80 @@ export const GROUPS = {
   futuro: { label: 'Futuro', share: 0.2, hint: 'Guardar, investir e quitar dívidas' },
 };
 
+// Objetivos da pessoa (settings.goal). A trilha de lições de cada um fica em GOAL_TRACKS (js/lessons.js).
 export const GOAL_TYPES = {
-  organizar: { label: 'Organizar minhas contas', lesson: 'orcamento' },
-  reserva: { label: 'Montar uma reserva de emergência', lesson: 'reserva' },
-  dividas: { label: 'Sair das dívidas', lesson: 'dividas' },
-  investir: { label: 'Começar a investir', lesson: 'juros-compostos' },
+  organizar: { label: 'Organizar minhas contas', icon: '🧾' },
+  reserva: { label: 'Montar uma reserva de emergência', icon: '🛟' },
+  dividas: { label: 'Sair das dívidas', icon: '💳' },
+  investir: { label: 'Começar a investir', icon: '🌱' },
 };
 
 export function txOfMonth(state, ym) {
   return state.transactions.filter((t) => monthOf(t.date) === ym);
+}
+
+/**
+ * Despesa paga? ÚNICA regra do app: use sempre esta função, nunca `t.paid` direto.
+ * O campo `paid` (boolean) só existe em despesa e só quando alguém decidiu (formulário, toque na lista
+ * ou coluna "Pago" da planilha). Sem o campo (dados antigos, ocorrência gerada pela recorrência), vale
+ * a data: conta como paga se a data já chegou e como "a pagar" se é futura. Receita conta sempre como paga.
+ */
+export function isPaid(t, today = todayISO()) {
+  if (!t || t.type !== 'expense') return true;
+  return hasPaidChoice(t) ? t.paid : t.date <= today;
+}
+
+/** A pessoa já decidiu pago/a pagar neste lançamento (o campo existe)? Se não, isPaid segue a data. */
+export const hasPaidChoice = (t) => typeof t?.paid === 'boolean';
+
+/** Situação de pagamento: 'paid' (paga), 'due' (a pagar, vence hoje ou depois) ou 'late' (a pagar e a data já passou). */
+export function payStatus(t, today = todayISO()) {
+  if (isPaid(t, today)) return 'paid';
+  return t.date < today ? 'late' : 'due';
+}
+
+/**
+ * Contas a pagar do mês (só despesas não pagas): total e quantidade; `late`/`lateCount` é a parte já atrasada.
+ * Não muda os totais do mês: despesas, saldo, 50/30/20 e orçamento continuam contando tudo, pago ou não.
+ */
+export function billsSummary(state, ym, today = todayISO()) {
+  const out = { due: 0, dueCount: 0, late: 0, lateCount: 0, expenseCount: 0 };
+  for (const t of txOfMonth(state, ym)) {
+    if (t.type !== 'expense') continue;
+    out.expenseCount++;
+    const st = payStatus(t, today);
+    if (st === 'paid') continue;
+    out.due += t.amount; out.dueCount++;
+    if (st === 'late') { out.late += t.amount; out.lateCount++; }
+  }
+  return out;
+}
+
+/** De onde saiu o dinheiro de uma despesa (`paidWith`). */
+export const PAID_WITH = { salario: 'Salário', cartao: 'Cartão de crédito' };
+export const isPaidWith = (v) => v === 'salario' || v === 'cartao';
+
+/**
+ * De onde saiu a despesa: 'salario' ou 'cartao'. ÚNICA regra do app: use sempre esta função, nunca
+ * `t.paidWith` direto. Sem o campo (dados antigos, planilha com a coluna vazia) conta como salário.
+ * Receita não tem o campo: devolve null.
+ */
+export function paidWithOf(t) {
+  if (!t || t.type !== 'expense') return null;
+  return isPaidWith(t.paidWith) ? t.paidWith : 'salario';
+}
+
+/** Despesas do mês por origem: quanto saiu do salário e quanto foi no cartão (soma = total de despesas). */
+export function paidWithSummary(state, ym) {
+  const out = { salario: 0, cartao: 0, cartaoCount: 0, expenseCount: 0 };
+  for (const t of txOfMonth(state, ym)) {
+    if (t.type !== 'expense') continue;
+    out.expenseCount++;
+    const w = paidWithOf(t);
+    out[w] += t.amount;
+    if (w === 'cartao') out.cartaoCount++;
+  }
+  return out;
 }
 
 /** Resumo de um mês: totais, por categoria e por grupo 50/30/20. */

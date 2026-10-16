@@ -6,6 +6,7 @@ import { openDialog, sheetHeader, toast, downloadFile } from '../ui.js';
 import { esc, fmtBRL, plural, sum, todayISO, uid } from '../utils.js';
 import { EXCELJS_LIB } from '../config.js';
 import { buildTemplate, readSheetRows, planImport, MAX_IMPORT_ROWS } from '../spreadsheet.js';
+import { isPaid, paidWithOf } from '../finance.js';
 import { icon } from '../icons.js';
 
 const XLSX_MIME = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
@@ -52,7 +53,7 @@ export function openSheetDialog() {
   const dlg = openDialog(`<div class="sheet-body">
     ${sheetHeader('Planilha do Excel')}
     <p class="lead">Prefere anotar no Excel? Baixe a planilha modelo, preencha uma linha por lançamento e importe aqui.
-      As listas de Tipo, Categoria e Natureza já vêm prontas, com as suas categorias.</p>
+      As listas de Tipo, Categoria, Natureza, Pago e Saiu do já vêm prontas, com as suas categorias.</p>
     <ul class="ob-points">
       <li>Antes de gravar, você vê uma <strong>prévia</strong>: o que entra, categorias novas e linhas com erro.</li>
       <li>Categoria que não existe vira <strong>categoria nova</strong> sua.</li>
@@ -115,6 +116,10 @@ function openPreview(plan, { fileName, truncated }) {
   const n = plan.transactions.length;
   const income = sum(plan.transactions.filter((t) => t.type === 'income'), (t) => t.amount);
   const expense = sum(plan.transactions.filter((t) => t.type === 'expense'), (t) => t.amount);
+  // Despesas que entram como "a pagar" (coluna Pago = Não, ou vazia com data futura).
+  const today = todayISO();
+  const due = plan.transactions.filter((t) => !isPaid(t, today));
+  const onCard = plan.transactions.filter((t) => paidWithOf(t) === 'cartao');
   const shown = plan.errors.slice(0, MAX_ERRORS_SHOWN);
   const empty = plan.total === 0;
   const dlg = openDialog(`<div class="sheet-body">
@@ -123,6 +128,8 @@ function openPreview(plan, { fileName, truncated }) {
     ${empty ? '<p>A planilha não tem nenhum lançamento preenchido na aba "Lançamentos".</p>' : `<ul class="import-summary">
       <li><strong>${plural(n, 'lançamento será importado', 'lançamentos serão importados')}</strong>${n ? `:
         <span class="pos">+${fmtBRL(income)}</span> em receitas e <span class="neg">−${fmtBRL(expense)}</span> em despesas` : ''}.</li>
+      ${due.length ? `<li>${plural(due.length, 'despesa entra', 'despesas entram')} como <strong>a pagar</strong> (${fmtBRL(sum(due, (t) => t.amount))}).</li>` : ''}
+      ${onCard.length ? `<li>${plural(onCard.length, 'despesa saiu', 'despesas saíram')} no <strong>cartão de crédito</strong> (${fmtBRL(sum(onCard, (t) => t.amount))}); as outras contam como salário.</li>` : ''}
       ${plan.newCategories.length ? `<li>${plural(plan.newCategories.length, 'categoria nova será criada', 'categorias novas serão criadas')}:
         ${plan.newCategories.map((c) => `${esc(c.name)} <small class="muted">(${c.type === 'income' ? 'receita' : 'despesa'})</small>`).join(', ')}.</li>` : ''}
       ${plan.duplicates.length ? `<li>${plural(plan.duplicates.length, 'linha já existe no app e será ignorada', 'linhas já existem no app e serão ignoradas')}
