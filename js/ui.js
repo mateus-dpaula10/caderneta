@@ -27,11 +27,18 @@ export function openDialog(html, { id = 'generic-dialog', onClose } = {}) {
   const dlg = document.getElementById(id);
   if (!dlg._wired) {
     // Um único ouvinte permanente; o handler da vez fica em dlg._onClose.
-    dlg.addEventListener('close', () => { const fn = dlg._onClose; dlg._onClose = null; fn?.(); });
+    // O evento 'close' chega DEPOIS (tarefa na fila), não na hora do dlg.close(). Se o diálogo já foi
+    // reaberto com outro conteúdo (ex.: fechar um formulário e abrir a confirmação em seguida), o evento
+    // atrasado é da sessão anterior, já tratada abaixo: ignora, para não fechar a sessão nova por engano.
+    dlg.addEventListener('close', () => {
+      if (dlg.open) return;
+      const fn = dlg._onClose; dlg._onClose = null; fn?.();
+    });
     dlg._wired = true;
   }
-  // Se o diálogo já estava aberto com outro conteúdo, encerra o handler anterior antes de trocar.
-  if (dlg.open && dlg._onClose) { const prev = dlg._onClose; dlg._onClose = null; prev(); }
+  // Handler pendente de uma sessão anterior (ainda aberta com outro conteúdo, ou fechada com o evento
+  // 'close' ainda na fila): encerra antes de trocar.
+  if (dlg._onClose) { const prev = dlg._onClose; dlg._onClose = null; prev(); }
   dlg._onClose = onClose || null;
   dlg.innerHTML = html;
   const close = () => dlg.close();
@@ -66,6 +73,16 @@ export function confirmDialog({ title, text, confirmLabel = 'Confirmar', danger 
       </form>`, { onClose: () => resolve(answer) });
     dlg.querySelector('[data-ok]').addEventListener('click', () => { answer = true; });
   });
+}
+
+/** Baixa um arquivo gerado no aparelho (texto ou binário). */
+export function downloadFile(filename, data, type = 'application/octet-stream') {
+  const blob = data instanceof Blob ? data : new Blob([data], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
 export function monthNav(ym) {

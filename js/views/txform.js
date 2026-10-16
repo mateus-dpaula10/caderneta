@@ -4,12 +4,16 @@ import { openDialog, sheetHeader, toast, moneyInput, confirmDialog } from '../ui
 import { centsToInput, esc, fmtBRL, monthOf, parseMoney, todayISO, monthLabel, currentMonth, monthCmp } from '../utils.js';
 import { budgetStatus } from '../finance.js';
 import { icon } from '../icons.js';
+import { openCategoryForm } from './category-form.js';
+
+// Valor especial da última opção do select: abre o formulário de categoria por cima do lançamento.
+const NEW_CAT = '__nova__';
 
 function categoryOptions(type, selected) {
-  return state.categories
+  return `${state.categories
     .filter((c) => c.type === type)
     .map((c) => `<option value="${esc(c.id)}" ${c.id === selected ? 'selected' : ''}>${c.icon || ''} ${esc(c.name)}</option>`)
-    .join('');
+    .join('')}<option value="${NEW_CAT}">+ Nova categoria…</option>`;
 }
 
 export function openTxForm({ tx = null, type = 'expense', date } = {}) {
@@ -58,10 +62,27 @@ export function openTxForm({ tx = null, type = 'expense', date } = {}) {
   const catSel = form.querySelector('#tx-cat');
   const showError = (msg) => { err.textContent = msg; err.hidden = false; };
 
+  // Última categoria de verdade escolhida: volta para ela se a pessoa desistir de criar uma nova.
+  let lastCat = catSel.value;
   form.querySelectorAll('input[name="type"]').forEach((r) => r.addEventListener('change', () => {
     const newType = form.type.value;
     catSel.innerHTML = categoryOptions(newType, newType === 'income' ? 'salario' : 'alimentacao');
+    lastCat = catSel.value;
   }));
+  catSel.addEventListener('change', () => {
+    if (catSel.value !== NEW_CAT) { lastCat = catSel.value; return; }
+    catSel.value = lastCat; // enquanto o formulário de categoria está aberto, o select não fica em "+ Nova categoria…"
+    const type = form.type.value;
+    openCategoryForm(null, {
+      type, lockType: true,
+      onSaved: (cat) => {
+        // O tipo do lançamento não muda com o formulário de categoria por cima, mas confere por garantia.
+        if (form.type.value === cat.type) { catSel.innerHTML = categoryOptions(cat.type, cat.id); lastCat = cat.id; }
+        catSel.focus();
+      },
+      onCancel: () => catSel.focus(),
+    });
+  });
   if (!editing) setTimeout(() => form.querySelector('#tx-amount').focus(), 30);
 
   form.addEventListener('submit', async (e) => {

@@ -1,9 +1,10 @@
-// Lançamentos do mês: filtros, busca e lista agrupada por dia.
+// Lançamentos do mês: filtros, busca, lista agrupada por dia e acesso à planilha do Excel.
 import { state } from '../store.js';
 import { ui, monthNav, emptyState } from '../ui.js';
 import { esc, fmtBRL, fmtDateLong, monthLabel, normalize, sum } from '../utils.js';
 import { txOfMonth } from '../finance.js';
 import { openTxForm } from './txform.js';
+import { openSheetDialog } from './spreadsheet-dialog.js';
 import { icon } from '../icons.js';
 
 const filters = { type: 'all', q: '', cat: '' };
@@ -65,7 +66,10 @@ export function render() {
   const cats = state.categories;
   return `
   <header class="page-head"><div><h1 class="page-title">Lançamentos</h1></div>
-    <button type="button" class="btn primary only-desktop" data-new-tx="expense">${icon('plus', { size: 18 })} Novo lançamento</button>
+    <div class="head-actions">
+      <button type="button" class="btn ghost small" data-sheet aria-haspopup="dialog">${icon('sheet', { size: 16 })} Planilha</button>
+      <button type="button" class="btn primary only-desktop" data-new-tx="expense">${icon('plus', { size: 18 })} Novo lançamento</button>
+    </div>
   </header>
   ${monthNav(ui.ym)}
   <div class="filters" role="search">
@@ -92,6 +96,7 @@ export function mount(root, { params }) {
     root.querySelectorAll('[data-type]').forEach((x) => x.setAttribute('aria-checked', String(x === b)));
     refresh();
   }));
+  root.querySelector('[data-sheet]').addEventListener('click', () => openSheetDialog());
   root.querySelector('#tx-search').addEventListener('input', (e) => { filters.q = e.target.value; refresh(); });
   root.querySelector('#tx-cat-filter').addEventListener('change', (e) => { filters.cat = e.target.value; refresh(); });
   results.addEventListener('click', (e) => {

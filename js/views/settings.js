@@ -1,12 +1,14 @@
-// Ajustes: perfil, tema, categorias, conta e sincronização (opcional), backup, instalação e dados.
-import { state, saveSettings, upsertCategory, deleteCategory, exportData, importData, resetAll, setFlag, categoryById } from '../store.js';
-import { openDialog, sheetHeader, toast, confirmDialog, moneyInput } from '../ui.js';
+// Ajustes: perfil, tema, categorias, conta e sincronização (opcional), backup, planilha do Excel, instalação e dados.
+import { state, saveSettings, exportData, importData, resetAll, setFlag, categoryById } from '../store.js';
+import { toast, confirmDialog, moneyInput, downloadFile } from '../ui.js';
 import { esc, fmtBRL, parseMoney, centsToInput, todayISO } from '../utils.js';
 import { GOAL_TYPES, GROUPS } from '../finance.js';
 import { DISCLAIMER } from '../lessons.js';
 import { icon } from '../icons.js';
 import { applyTheme, install } from '../app-shell.js';
 import { renderAccountBlock, mountAccountBlock, isSyncLinked } from '../account.js';
+import { openCategoryForm } from './category-form.js';
+import { renderSheetActions, mountSheetActions } from './spreadsheet-dialog.js';
 
 const STORAGE_TEXT = {
   indexeddb: 'Seus dados estão salvos neste aparelho (IndexedDB).',
@@ -67,6 +69,13 @@ export function render() {
     ${state.progress.flags?.exportedAt ? `<p class="muted small">Último backup: ${new Date(state.progress.flags.exportedAt).toLocaleString('pt-BR')}</p>` : ''}
   </section>
 
+  <section class="block" aria-labelledby="sheet-title">
+    <div class="block-head"><h2 id="sheet-title">Planilha do Excel</h2></div>
+    <p class="lead">Baixe a planilha modelo (já com as suas categorias), preencha no Excel e importe. Antes de gravar, o app mostra
+      uma prévia; nada é apagado e lançamentos que já existem não são duplicados. Também fica em Lançamentos → Planilha.</p>
+    ${renderSheetActions()}
+  </section>
+
   <section class="block" aria-labelledby="install-title">
     <div class="block-head"><h2 id="install-title">Instalar no aparelho</h2></div>
     <p class="lead" id="install-help">No Android e no computador, use o botão abaixo (ou o menu do navegador, "Instalar app").
@@ -82,64 +91,6 @@ export function render() {
       <button type="button" class="btn ghost danger-text" data-reset>${icon('trash', { size: 18 })} Apagar todos os dados</button>
     </div>
   </section>`;
-}
-
-function openCategoryForm(cat = null) {
-  const c = cat || { name: '', icon: '🏷️', type: 'expense', group: 'desejos' };
-  const dlg = openDialog(`<form class="sheet-body" novalidate>
-    ${sheetHeader(cat ? 'Editar categoria' : 'Nova categoria')}
-    <div class="grid-2 icon-name">
-      <label class="field" for="c-icon"><span class="field-label">Ícone</span>
-        <input id="c-icon" name="icon" maxlength="4" value="${esc(c.icon)}" class="emoji-input"></label>
-      <label class="field" for="c-name"><span class="field-label">Nome</span>
-        <input id="c-name" name="name" maxlength="40" required value="${esc(c.name)}"></label>
-    </div>
-    ${cat ? '' : `<fieldset class="segmented small"><legend class="field-label">Tipo</legend>
-      <label><input type="radio" name="type" value="expense" checked><span>Despesa</span></label>
-      <label><input type="radio" name="type" value="income"><span>Receita</span></label></fieldset>`}
-    <label class="field" for="c-group" ${c.type === 'income' ? 'hidden' : ''} data-group-field><span class="field-label">Grupo no 50/30/20</span>
-      <select id="c-group" name="group">${Object.entries(GROUPS).map(([k, g]) => `<option value="${k}" ${k === c.group ? 'selected' : ''}>${g.label}: ${g.hint.toLowerCase()}</option>`).join('')}</select></label>
-    <p class="form-error" role="alert" hidden></p>
-    <div class="actions">
-      ${cat ? `<button type="button" class="btn ghost danger-text" data-del-cat>${icon('trash', { size: 18 })} Excluir</button>` : ''}
-      <button type="submit" class="btn primary">${cat ? 'Salvar' : 'Criar categoria'}</button>
-    </div>
-  </form>`);
-  const form = dlg.querySelector('form');
-  form.querySelectorAll('input[name="type"]').forEach((r) => r.addEventListener('change', () => {
-    form.querySelector('[data-group-field]').hidden = form.type.value === 'income';
-  }));
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const name = form.name.value.trim();
-    const err = form.querySelector('.form-error');
-    if (!name) { err.textContent = 'Dê um nome para a categoria.'; err.hidden = false; form.name.focus(); return; }
-    const type = cat ? cat.type : form.type.value;
-    await upsertCategory({ ...(cat ? { id: cat.id } : {}), name, icon: form.icon.value.trim() || '🏷️', type, group: type === 'expense' ? form.group.value : null });
-    dlg.close();
-    toast(cat ? 'Categoria salva.' : 'Categoria criada.', { tone: 'good' });
-  });
-  form.querySelector('[data-del-cat]')?.addEventListener('click', async () => {
-    dlg.close();
-    const count = state.transactions.filter((t) => t.categoryId === cat.id).length;
-    const target = cat.type === 'income' ? 'Outras receitas' : 'Outros gastos';
-    const ok = await confirmDialog({
-      title: `Excluir "${esc(cat.name)}"?`,
-      text: count ? `${count} ${count === 1 ? 'lançamento será movido' : 'lançamentos serão movidos'} para "${target}".` : 'Nenhum lançamento usa esta categoria.',
-      confirmLabel: 'Excluir', danger: true,
-    });
-    if (!ok) return;
-    try { await deleteCategory(cat.id); toast('Categoria excluída.'); } catch (ex) { toast(esc(ex.message), { tone: 'alert' }); }
-  });
-}
-
-function download(filename, text) {
-  const blob = new Blob([text], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = filename;
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
 export function mount(root, { rerender, showOnboarding }) {
@@ -165,9 +116,11 @@ export function mount(root, { rerender, showOnboarding }) {
   root.querySelector('[data-export]').addEventListener('click', async () => {
     // Marca antes de gerar o arquivo, para o próprio backup já registrar a data e a conquista.
     await setFlag('exportedAt');
-    download(`caderneta-backup-${todayISO()}.json`, JSON.stringify(exportData(), null, 2));
+    downloadFile(`caderneta-backup-${todayISO()}.json`, JSON.stringify(exportData(), null, 2), 'application/json');
     toast('Backup exportado. Guarde o arquivo num lugar seguro: ele contém seus dados financeiros.', { tone: 'good', timeout: 7000 });
   });
+
+  mountSheetActions(root);
 
   root.querySelector('[data-import]').addEventListener('change', async (e) => {
     const file = e.target.files?.[0];

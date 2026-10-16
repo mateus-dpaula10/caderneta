@@ -5,6 +5,7 @@ import { openStorage, STORES } from './db.js';
 import { addMonths, currentMonth, daysInMonth, monthCmp, monthOf, monthsBetween, todayISO, uid } from './utils.js';
 import { computeStreak, newlyUnlocked } from './gamification.js';
 import { GENERATED_TS, mergeProgress, nextStamp, normTs, sameContent, tsMs, unionSkipped } from './merge.js';
+import { textKey, txSignature } from './spreadsheet.js';
 
 export const SCHEMA_VERSION = 1;
 
@@ -92,16 +93,21 @@ const outboxEntry = (store, id, updatedAt, deleted = false) => ({
 /** Carimba `updatedAt` (sempre depois da versão anterior do mesmo registro). */
 function touch(rec) { rec.updatedAt = nextStamp(rec.updatedAt); return rec; }
 
-/** Grava registro(s) e as entradas da fila na mesma transação. */
-async function persist(store, recs, { stamp = true } = {}) {
-  const list = Array.isArray(recs) ? recs : [recs];
-  if (!list.length) return;
+/** Operações de gravação de registro(s) + entradas da fila (para juntar várias stores numa transação só). */
+function trackedOps(store, list, { stamp = true } = {}) {
   const ops = [];
   for (const r of list) {
     if (stamp) touch(r);
     ops.push({ store, put: r }, { store: 'outbox', put: outboxEntry(store, r.id, r.updatedAt || GENERATED_TS) });
   }
-  await db.write(ops);
+  return ops;
+}
+
+/** Grava registro(s) e as entradas da fila na mesma transação. */
+async function persist(store, recs, { stamp = true } = {}) {
+  const list = Array.isArray(recs) ? recs : [recs];
+  if (!list.length) return;
+  await db.write(trackedOps(store, list, { stamp }));
   localWrote();
 }
 
@@ -311,6 +317,58 @@ export const deleteTransaction = locked(async (id) => {
   state.transactions = state.transactions.filter((t) => t.id !== id);
   await persistDelete('transactions', tx);
   await afterChange('transactions');
+});
+
+/**
+ * Importação em lote (planilha): cria as categorias novas e os lançamentos numa única gravação atômica,
+ * com um único redesenho e todos os registros na fila de sincronização. Recebe o plano de planImport
+ * (js/spreadsheet.js) e confere de novo contra o estado ATUAL, porque algo pode ter mudado entre a
+ * prévia e a confirmação (ex.: a sincronização trouxe a mesma categoria ou os mesmos lançamentos):
+ *  - categoria nova cujo nome já existe no mesmo tipo passa a usar a existente;
+ *  - lançamento igual a um existente (mesma data, tipo, valor, categoria e descrição) é ignorado.
+ * Retorna { added, categoriesCreated, skipped }.
+ */
+export const importTransactions = locked(async ({ newCategories = [], transactions = [] }) => {
+  const idMap = new Map();
+  const cats = [];
+  for (const c of newCategories) {
+    const same = state.categories.find((x) => x.type === c.type && textKey(x.name) === textKey(c.name))
+      || cats.find((x) => x.type === c.type && textKey(x.name) === textKey(c.name));
+    if (same) { idMap.set(c.id, same.id); continue; }
+    const cat = {
+      id: c.id, name: String(c.name).trim().slice(0, 40), icon: c.icon || '🏷️', type: c.type === 'income' ? 'income' : 'expense',
+      group: c.type === 'income' ? null : (c.group || 'desejos'), budget: 0, order: state.categories.length + cats.length,
+    };
+    cats.push(cat);
+  }
+  const known = new Set([...state.categories, ...cats].map((c) => c.id));
+  const existing = new Map();
+  for (const t of state.transactions) { const s = txSignature(t); existing.set(s, (existing.get(s) || 0) + 1); }
+  const now = new Date().toISOString();
+  const txs = [];
+  let skipped = 0;
+  for (const data of transactions) {
+    const base = cleanTx({ ...data, categoryId: idMap.get(data.categoryId) || data.categoryId });
+    if (!(base.amount > 0) || !/^\d{4}-\d{2}-\d{2}$/.test(base.date) || !known.has(base.categoryId)) { skipped++; continue; }
+    const s = txSignature(base);
+    const left = existing.get(s) || 0;
+    if (left > 0) { existing.set(s, left - 1); skipped++; continue; }
+    txs.push({ id: uid(), ...base, seriesId: null, createdAt: now });
+  }
+  // Só cria as categorias que ficaram com algum lançamento.
+  const used = new Set(txs.map((t) => t.categoryId));
+  const keptCats = cats.filter((c) => used.has(c.id));
+  if (!txs.length) return { added: 0, categoriesCreated: 0, skipped };
+
+  // Grava primeiro; o estado em memória só muda se a gravação deu certo (falha = nada importado).
+  await db.write([...trackedOps('categories', keptCats), ...trackedOps('transactions', txs)]);
+  localWrote();
+  state.categories.push(...keptCats);
+  state.transactions.push(...txs);
+  recordActivity();
+  await persist('meta', state.progress);
+  await afterChange('transactions');
+  return { added: txs.length, categoriesCreated: keptCats.length, skipped };
 });
 
 export const recurrenceById = (id) => state.recurrences.find((r) => r.id === id);

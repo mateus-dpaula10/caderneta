@@ -530,6 +530,15 @@ select.compact { min-height: 44px; width: auto; max-width: 100%; }
 .series-box { background: var(--surface-2); border-radius: var(--radius-sm); padding: 10px 12px; margin: 10px 0; font-size: .92rem; }
 .series-box p { display: flex; gap: 6px; align-items: center; }
 
+/* Prévia da importação de planilha */
+.import-summary { padding-left: 1.1em; margin: 8px 0 12px; }
+.import-summary li { margin-bottom: 6px; }
+.import-errors {
+  list-style: none; margin: 0 0 8px; padding: 10px 12px; max-height: 40dvh; overflow: auto;
+  background: var(--surface-2); border-radius: var(--radius-sm); font-size: .9rem;
+}
+.import-errors li { padding: 3px 0; overflow-wrap: anywhere; }
+
 .cat-list { list-style: none; margin: 0; padding: 0; }
 .cat-list li { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); }
 .cat-emoji { width: 32px; text-align: center; font-size: 1.2rem; }

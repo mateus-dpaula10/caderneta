@@ -13,6 +13,7 @@ const P = {
   edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/>',
   download: '<path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 21h16"/>',
   upload: '<path d="M12 21V9"/><path d="m7 14 5-5 5 5"/><path d="M4 3h16"/>',
+  sheet: '<rect x="3.5" y="3.5" width="17" height="17" rx="2"/><path d="M3.5 9h17M3.5 14.5h17M9 3.5v17"/>',
   flame: '<path d="M12 22c4 0 7-2.7 7-7 0-3.5-2.2-6.2-4.4-8.2.1 2.2-.8 3.7-2.1 4.3C12.9 7.6 11 4.6 8.7 2.5 8.9 6.6 5 9 5 15c0 4.3 3 7 7 7z"/>',
   check: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
   x: '<path d="M6 6l12 12M18 6 6 18"/>',

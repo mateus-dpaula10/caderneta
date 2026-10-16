@@ -10,6 +10,10 @@ export const SUPABASE_KEY = 'sb_publishable_Mt-0LqMiEwJq_Uv2Uf9ygw__FDmEN79';
 // Caminho relativo a esta pasta (js/). Ao trocar a versão, atualize também a lista SHELL do sw.js.
 export const SUPABASE_LIB = 'vendor/supabase-js-2.117.2.umd.js';
 
+// ExcelJS (planilha modelo e importação .xlsx), empacotado no app do mesmo jeito: só é carregado quando a pessoa
+// baixa ou importa uma planilha. Ao trocar a versão, atualize também a lista SHELL do sw.js.
+export const EXCELJS_LIB = 'vendor/exceljs-4.4.0.min.js';
+
 // Onde o supabase-js guarda a sessão (localStorage). Fica fora das tabelas sincronizadas.
 export const AUTH_STORAGE_KEY = 'caderneta:auth';
 

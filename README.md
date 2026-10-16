@@ -4,7 +4,8 @@ App web instalável, em pt-BR, que junta **controle de ganhos e gastos** com **e
 Os dados da pessoa alimentam as dicas e as lições (ex.: "gastos com lazer subiram 78% vs. mês passado",
 "sua reserva cobre 0,5 mês de gastos — veja a lição Reserva de emergência").
 
-- HTML + CSS + JavaScript puro (ES modules). **Sem build.** Única dependência: o supabase-js empacotado em `js/vendor/` (só é carregado se a pessoa entrar numa conta).
+- HTML + CSS + JavaScript puro (ES modules). **Sem build.** Dependências empacotadas em `js/vendor/`, ambas carregadas só
+  quando usadas: o supabase-js (se a pessoa entrar numa conta) e o ExcelJS (se baixar ou importar a planilha do Excel).
 - Offline-first: dados no aparelho (IndexedDB → fallback localStorage → memória com aviso) e service worker com cache do app.
 - **Conta opcional** (Supabase, e-mail e senha) para sincronizar entre aparelhos. Sem conta, o app funciona como sempre e nada sai do aparelho.
 - Instalável no Android, iOS e desktop (manifest + ícones SVG/PNG 192/512 + maskable + apple-touch-icon).
@@ -41,7 +42,9 @@ Publique em qualquer hospedagem estática com HTTPS (Netlify, Vercel, GitHub Pag
 1. Lançamentos de receitas/despesas: valor, data, categoria, descrição, fixo/variável e **repetir todo mês**
    (as ocorrências são geradas automaticamente até o mês atual, sem duplicar; dá para parar a série).
 2. Categorias padrão editáveis (moradia, contas, mercado, transporte, saúde, educação, restaurantes, lazer,
-   compras, assinaturas, dívidas, guardar e investir…), cada uma num grupo do 50/30/20.
+   compras, assinaturas, dívidas, guardar e investir…), cada uma num grupo do 50/30/20. Categorias próprias são criadas
+   em Ajustes → Categorias ou **direto no lançamento** (opção "+ Nova categoria…" no fim da lista de categorias: abre o
+   formulário por cima do lançamento, já com o tipo dele; ao salvar, a categoria nova fica selecionada).
 3. Visão mensal com navegação entre meses: saldo, receitas, despesas, gastos fixos, **régua 50/30/20 da renda**,
    gastos por categoria e gráfico dos últimos 6 meses (SVG próprio, com tabela acessível).
 4. Orçamento por categoria com alerta (aviso ao lançar e nas dicas) e **sugestão automática pelo 50/30/20**
@@ -49,21 +52,32 @@ Publique em qualquer hospedagem estática com HTTPS (Netlify, Vercel, GitHub Pag
 5. Metas de economia (reserva de emergência e outras) com progresso, prazo e "quanto guardar por mês";
    guardar/retirar pode gerar o lançamento correspondente.
 6. Exportar/importar backup JSON (importação validada e atômica: arquivo inválido não altera nada).
+7. **Planilha do Excel** (Lançamentos → Planilha, ou Ajustes → Planilha do Excel):
+   - *Baixar planilha modelo (.xlsx)*: aba "Lançamentos" (Data, Tipo, Categoria, Descrição, Valor (R$), Natureza) com
+     cabeçalho em negrito e congelado, data dd/mm/aaaa, valor em moeda e listas suspensas em Tipo, Categoria (as categorias
+     da pessoa, da aba "Categorias") e Natureza; aba "Como preencher". Sem linhas de exemplo.
+   - *Importar planilha*: lê e valida tudo antes de gravar e mostra uma prévia (lançamentos a importar, categorias novas,
+     linhas que já existem e linhas com erro, com número e motivo). Aceita data real do Excel ou texto dd/mm/aaaa, valor
+     número ou texto ("1.234,56", "R$ 1.234,56"), Tipo/Natureza sem diferença de maiúscula/acento (Natureza vazia = Variável).
+     Categoria casa pelo nome dentro do tipo; nome desconhecido vira categoria própria nova (ícone 🏷️, grupo "Desejos").
+     Linhas iguais a lançamentos já existentes (data, tipo, valor, categoria e descrição) são ignoradas: importar o mesmo
+     arquivo duas vezes não duplica. A gravação é um lote atômico (`importTransactions` no `store.js`): um redesenho e
+     tudo entra na fila de sincronização de uma vez. Limites: 10 MB por arquivo, 5.000 linhas por importação.
 
 **Educação**
-7. Trilha de 8 micro-aulas com quiz (3 perguntas cada): orçamento, reserva de emergência, dívidas e juros
+8. Trilha de 8 micro-aulas com quiz (3 perguntas cada): orçamento, reserva de emergência, dívidas e juros
    (rotativo/cheque especial), juros compostos, inflação, investimentos básicos (poupança, Tesouro Direto, CDB),
    consumo consciente e golpes financeiros. Algumas lições mostram um bloco "Com os seus números".
-8. Dicas contextuais geradas dos dados (déficit, orçamento estourado, categoria que subiu, peso das dívidas,
+9. Dicas contextuais geradas dos dados (déficit, orçamento estourado, categoria que subiu, peso das dívidas,
    reserva, metas com prazo, 50/30/20, sobra parada, hábito de registro).
-9. Simuladores: juros compostos (com gráfico), tempo até a meta, custo real do parcelamento (juros embutidos
-   no "sem juros") e quitação de dívida (detecta quando o pagamento não cobre os juros).
-10. Onboarding (renda, objetivo, situação) que personaliza dicas e a lição recomendada e pode já criar
+10. Simuladores: juros compostos (com gráfico), tempo até a meta, custo real do parcelamento (juros embutidos
+    no "sem juros") e quitação de dívida (detecta quando o pagamento não cobre os juros).
+11. Onboarding (renda, objetivo, situação) que personaliza dicas e a lição recomendada e pode já criar
     renda recorrente, limites 50/30/20 e a meta de reserva.
-11. Gamificação leve: sequência de dias registrando e 11 conquistas.
+12. Gamificação leve: sequência de dias registrando e 11 conquistas.
 
 **Conta e sincronização (opcional)**
-12. Ajustes → Conta e sincronização: criar conta, entrar, esqueci a senha, status (último sync, pendências,
+13. Ajustes → Conta e sincronização: criar conta, entrar, esqueci a senha, status (último sync, pendências,
     "Sincronizar agora"), sair (mantendo ou apagando os dados do aparelho) e excluir a conta (LGPD).
 
 ## Estrutura
@@ -80,13 +94,14 @@ financas-pwa/
     ├── app.js               # boot, rotas (#/inicio, #/lancamentos, #/planejar, #/aprender, #/ferramentas, #/ajustes)
     ├── app-shell.js         # tema, instalação, registro do SW
     ├── db.js                # IndexedDB (v2: + outbox, syncstate) / localStorage / memória
-    ├── config.js            # URL e chave PÚBLICA do Supabase
+    ├── config.js            # URL e chave PÚBLICA do Supabase; caminhos das bibliotecas em vendor/
     ├── auth.js              # login/cadastro/senha (carrega o supabase-js sob demanda)
     ├── account.js           # fluxos da conta + bloco "Conta e sincronização" em Ajustes
     ├── sync.js              # motor de sincronização (push/pull, cursores, erros)
     ├── merge.js             # carimbos de tempo e junção do progresso (funções puras)
-    ├── vendor/              # supabase-js 2.117.2 (build UMD autocontido, licença MIT)
-    ├── store.js             # estado + operações (lançamentos, recorrência, metas, backup)
+    ├── vendor/              # supabase-js 2.117.2 (UMD) e ExcelJS 4.4.0 (dist/exceljs.min.js), ambos licença MIT
+    ├── store.js             # estado + operações (lançamentos, recorrência, metas, backup, importação em lote)
+    ├── spreadsheet.js       # planilha .xlsx: monta o modelo, lê e valida a importação (funções puras)
     ├── finance.js           # cálculos de mês, 50/30/20, orçamento, reserva
     ├── insights.js          # dicas contextuais (dados → lições)
     ├── lessons.js           # conteúdo das micro-aulas e quizzes
@@ -94,7 +109,8 @@ financas-pwa/
     ├── gamification.js      # sequência e conquistas
     ├── charts.js            # gráficos SVG sem dependência
     ├── ui.js, icons.js, utils.js
-    └── views/               # home, transactions, txform, plan, learn, tools, settings, onboarding
+    └── views/               # home, transactions, txform, plan, learn, tools, settings, onboarding,
+                             # category-form (criar/editar categoria), spreadsheet-dialog (baixar/importar planilha)
 ```
 
 Valores monetários são guardados em **centavos inteiros** (sem erro de ponto flutuante). Datas são locais
@@ -153,6 +169,16 @@ Baixe a versão nova (`npm pack @supabase/supabase-js@<versão>`), copie `packag
 `js/vendor/supabase-js-<versão>.umd.js`, atualize `SUPABASE_LIB` em `js/config.js`, a lista `SHELL` e a `VERSION` do `sw.js`.
 Versão atual: **2.117.2** (licença MIT em `js/vendor/LICENSE-supabase-js.txt`).
 
+### Atualizar o ExcelJS
+
+Numa pasta temporária vazia, fora do projeto: `npm pack exceljs@<versão>` e extraia o `.tgz`. Copie **só**
+`package/dist/exceljs.min.js` para `js/vendor/exceljs-<versão>.min.js` (sem alterar o arquivo; ele termina com um comentário
+`sourceMappingURL` para um `.map` que não é empacotado, então as ferramentas do navegador podem acusar um 404 inofensivo) e
+`package/LICENSE` para `js/vendor/LICENSE-exceljs.txt`. Atualize `EXCELJS_LIB` em `js/config.js`, a lista `SHELL` e a
+`VERSION` do `sw.js`, apague o arquivo da versão antiga e teste baixar o modelo e importar uma planilha.
+Versão atual: **4.4.0** (licença MIT em `js/vendor/LICENSE-exceljs.txt`). O arquivo tem ~0,9 MB: é carregado só quando a
+pessoa baixa ou importa uma planilha, mas está no `SHELL` (cache do service worker) para funcionar offline.
+
 ## Privacidade
 
 - **Sem conta:** nada sai do aparelho. Não há analytics nem rastreadores.
@@ -160,3 +186,5 @@ Versão atual: **2.117.2** (licença MIT em `js/vendor/LICENSE-supabase-js.txt`)
   ligada ao e-mail da pessoa e protegida por RLS (cada pessoa só lê e grava as próprias linhas; visitante sem login não acessa nada).
   A pessoa pode sair a qualquer momento e **excluir a conta e todos os dados do servidor** em Ajustes (função `delete_my_account`).
 - O backup exportado contém dados financeiros pessoais — guarde-o em local seguro.
+- A planilha do Excel é gerada e lida no próprio aparelho (nenhum arquivo é enviado a servidor). A planilha modelo leva os
+  nomes das suas categorias; a preenchida, os seus lançamentos: trate as duas com o mesmo cuidado do backup.
