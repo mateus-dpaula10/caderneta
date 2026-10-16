@@ -99,8 +99,10 @@
 }
 
 *, *::before, *::after { box-sizing: border-box; }
-html { -webkit-text-size-adjust: 100%; }
+/* Sem zoom: touch-action: manipulation bloqueia o zoom por duplo toque (o de pinça é barrado no js/app-shell.js). */
+html { -webkit-text-size-adjust: 100%; touch-action: manipulation; }
 body {
+  touch-action: manipulation;
   margin: 0;
   background: var(--bg);
   color: var(--ink);
@@ -113,6 +115,8 @@ a { color: var(--primary); text-underline-offset: 2px; }
 h1, h2, h3 { line-height: 1.2; margin: 0; }
 p { margin: 0 0 .5em; }
 button, input, select, textarea { font: inherit; color: inherit; }
+/* iOS Safari dá zoom ao focar um campo com fonte menor que 16px: os campos nunca ficam abaixo disso. */
+input, select, textarea { font-size: max(16px, 1em); }
 [hidden] { display: none !important; }
 :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: 6px; }
 .sr-only {

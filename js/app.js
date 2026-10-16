@@ -1,7 +1,7 @@
 // Ponto de entrada: inicia armazenamento, tema, rotas, service worker, onboarding e (se houver conta) a sincronização.
 import { state, initStore, onChange, onAchievement, materializeRecurrences } from './store.js';
 import { requestPersistence } from './db.js';
-import { applyTheme, registerSW } from './app-shell.js';
+import { applyTheme, registerSW, preventZoom } from './app-shell.js';
 import { ui, toast } from './ui.js';
 import { addMonths, currentMonth, todayISO } from './utils.js';
 import { icon } from './icons.js';
@@ -151,6 +151,7 @@ function wireGlobalEvents() {
 }
 
 async function boot() {
+  preventZoom();
   buildNav();
   wireGlobalEvents();
   try {

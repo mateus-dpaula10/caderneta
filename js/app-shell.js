@@ -1,6 +1,19 @@
-// Integração com o navegador: tema, instalação (PWA) e service worker.
+// Integração com o navegador: tema, zoom, instalação (PWA) e service worker.
 
 const THEME_KEY = 'caderneta:theme';
+
+/**
+ * Bloqueia o zoom de pinça. O iOS Safari ignora user-scalable=no do meta viewport, então
+ * cancelamos os gestos (gesturestart/gesturechange, só existem no Safari) e o touchmove com
+ * mais de um dedo. O duplo toque já é barrado pelo touch-action: manipulation do CSS.
+ * passive: false é obrigatório para o preventDefault valer em eventos de toque.
+ */
+export function preventZoom() {
+  const block = (e) => e.preventDefault();
+  document.addEventListener('gesturestart', block, { passive: false });
+  document.addEventListener('gesturechange', block, { passive: false });
+  document.addEventListener('touchmove', (e) => { if (e.touches.length > 1) e.preventDefault(); }, { passive: false });
+}
 
 /** Aplica o tema: 'auto' segue o sistema; 'light'/'dark' forçam. Guarda em localStorage para evitar flash. */
 export function applyTheme(theme = 'auto') {
