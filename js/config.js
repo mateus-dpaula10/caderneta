@@ -1,0 +1,17 @@
+// Configuração da sincronização (opcional) com o Supabase.
+// Só a chave PÚBLICA ("publishable") pode ficar aqui: ela identifica o projeto e, sozinha, não dá acesso
+// a dado nenhum (o banco exige login + RLS: cada pessoa só lê e grava as próprias linhas).
+// NUNCA coloque aqui a chave secreta / service_role.
+
+export const SUPABASE_URL = 'https://vujhnbiohitufdjpdbvq.supabase.co';
+export const SUPABASE_KEY = 'sb_publishable_Mt-0LqMiEwJq_Uv2Uf9ygw__FDmEN79';
+
+// Cliente oficial empacotado no próprio app (funciona offline e é cacheado pelo service worker).
+// Caminho relativo a esta pasta (js/). Ao trocar a versão, atualize também a lista SHELL do sw.js.
+export const SUPABASE_LIB = 'vendor/supabase-js-2.117.2.umd.js';
+
+// Onde o supabase-js guarda a sessão (localStorage). Fica fora das tabelas sincronizadas.
+export const AUTH_STORAGE_KEY = 'caderneta:auth';
+
+// Para o texto de privacidade.
+export const SERVER_REGION_LABEL = 'Supabase, servidor em São Paulo (Brasil)';
