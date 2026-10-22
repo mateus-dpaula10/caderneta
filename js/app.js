@@ -13,6 +13,7 @@ import * as plan from './views/plan.js';
 import * as learn from './views/learn.js';
 import * as tools from './views/tools.js';
 import * as settings from './views/settings.js';
+import * as review from './views/review.js';
 import { captureAuthCallback } from './auth.js';
 import { initAccount, openAuthDialog } from './account.js';
 
@@ -26,6 +27,8 @@ const ROUTES = {
   aprender: { view: learn, label: 'Aprender', icon: 'book' },
   ferramentas: { view: tools, label: 'Ferramentas', icon: 'calc' },
   ajustes: { view: settings, label: 'Ajustes', icon: 'settings', desktopOnly: true },
+  // Fora do menu: aberta pelo Início, pelos lembretes do calendário e pelas lições.
+  revisao: { view: review, label: 'Revisão da semana', icon: 'calendar', hidden: true },
 };
 
 const main = document.getElementById('main');
@@ -43,7 +46,7 @@ function parseHash() {
 }
 
 function buildNav() {
-  document.getElementById('nav-list').innerHTML = Object.entries(ROUTES).map(([key, r]) => `
+  document.getElementById('nav-list').innerHTML = Object.entries(ROUTES).filter(([, r]) => !r.hidden).map(([key, r]) => `
     <li class="${r.desktopOnly ? 'only-desktop' : ''}"><a href="#/${key}" data-route="${key}">${icon(r.icon)}<span>${r.label}</span></a></li>`).join('');
 }
 

@@ -1,8 +1,9 @@
-// Planejar: orçamento por categoria (com sugestão 50/30/20) e metas de economia.
+// Planejar: metas de economia, dívidas (ordem de pagamento) e orçamento por categoria (com sugestão 50/30/20).
 import { state, setBudgets, upsertGoal, deleteGoal, contributeGoal, goalById } from '../store.js';
 import { ui, monthNav, openDialog, sheetHeader, toast, confirmDialog, moneyInput } from '../ui.js';
-import { esc, fmtBRL, fmtPct, parseMoney, centsToInput, monthLabel, currentMonth } from '../utils.js';
+import { esc, fmtBRL, fmtPct, fmtPct1, parseMoney, parseDecimal, centsToInput, monthLabel, currentMonth } from '../utils.js';
 import { GROUPS, avgMonthlyExpense, budgetStatus, monthSummary, monthlyNeeded, referenceIncome, suggestBudgets } from '../finance.js';
+import { debtForecast, debtOrder, debtRemaining, debtsOf, isDebt, savingGoalsOf } from '../objective.js';
 import { ring } from '../charts.js';
 import { icon } from '../icons.js';
 
@@ -77,26 +78,123 @@ function goalsSection() {
   return `<section class="block" aria-labelledby="goals-title">
     <div class="block-head"><h2 id="goals-title">Metas de economia</h2>
       <button type="button" class="btn ghost small" data-new-goal>${icon('plus', { size: 16 })} Nova meta</button></div>
-    ${state.goals.length ? `<ul class="goals">${state.goals.map(goalCard).join('')}</ul>`
+    ${savingGoalsOf(state).length ? `<ul class="goals">${savingGoalsOf(state).map(goalCard).join('')}</ul>`
     : `<div class="empty"><p class="empty-title">Nenhuma meta ainda</p>
         <p>Comece pela reserva de emergência: é ela que impede que um imprevisto vire dívida.</p>
         <button type="button" class="btn primary" data-new-goal="reserva">Criar reserva de emergência</button></div>`}
   </section>`;
 }
 
+function debtCard(d, priority) {
+  const left = debtRemaining(d);
+  const f = debtForecast(d);
+  const facts = [
+    d.rate > 0 ? `juros de ${fmtPct1(d.rate)} ao mês` : 'juros não informados',
+    d.installment ? `parcela de ${fmtBRL(d.installment)}` : null,
+  ].filter(Boolean).join(', ');
+  return `<li class="goal debt ${left ? '' : 'is-paid'}">
+    ${ring(d.target ? (d.target - left) / d.target : 0, { size: 64, label: `${Math.round(((d.target - left) / (d.target || 1)) * 100)}% pago` })}
+    <div class="goal-body">
+      <h3>${esc(d.name)} ${priority ? '<span class="tag accent">Prioridade</span>' : ''}</h3>
+      ${left ? `<p><strong>Faltam ${fmtBRL(left)}</strong> de ${fmtBRL(d.target)}</p>
+        <p class="muted">${esc(facts.charAt(0).toUpperCase() + facts.slice(1))}.${f?.never
+    ? ' <strong class=\"neg\">A parcela não cobre os juros do mês: a dívida cresce.</strong>'
+    : f?.months ? ` Pagando a parcela, quita em cerca de ${f.months} ${f.months === 1 ? 'mês' : 'meses'} (${fmtBRL(f.interest)} de juros).` : ''}</p>`
+    : `<p><strong>Quitada!</strong> Você pagou ${fmtBRL(d.target)}.</p>`}
+      <div class="goal-actions">
+        ${left ? `<button type="button" class="btn primary small" data-pay="${esc(d.id)}">${icon('check', { size: 16 })} Paguei</button>` : ''}
+        <button type="button" class="icon-btn small" data-edit-debt="${esc(d.id)}" aria-label="Editar dívida ${esc(d.name)}">${icon('edit', { size: 18 })}</button>
+      </div>
+    </div>
+  </li>`;
+}
+
+/** Dívidas: aparece para quem tem alguma cadastrada, escolheu esse objetivo ou disse que tem dívidas. */
+function debtsSection() {
+  const debts = debtOrder(debtsOf(state));
+  if (!debts.length && state.settings.goal !== 'dividas' && !state.settings.hasDebt) return '';
+  const firstOpen = debts.find((d) => debtRemaining(d) > 0);
+  return `<section class="block" id="dividas" aria-labelledby="debts-title">
+    <div class="block-head"><h2 id="debts-title">Minhas dívidas</h2>
+      <button type="button" class="btn ghost small" data-new-debt>${icon('plus', { size: 16 })} Nova dívida</button></div>
+    ${debts.length ? `<p class="lead">Ordem sugerida: juros mais altos primeiro (método avalanche). Pague a parcela de todas e coloque
+        o que sobrar na primeira. <a href="#/aprender/plano-dividas">Entenda o plano</a>.</p>
+      <ul class="goals">${debts.map((d) => debtCard(d, d === firstOpen && debts.filter((x) => debtRemaining(x) > 0).length > 1)).join('')}</ul>`
+    : `<div class="empty"><p class="empty-title">Nenhuma dívida cadastrada</p>
+        <p>Cadastre cada uma com o saldo, os juros e a parcela. O app mostra qual pagar primeiro e quando você fica livre.</p>
+        <button type="button" class="btn primary" data-new-debt>Cadastrar dívida</button></div>`}
+  </section>`;
+}
+
 export function render() {
+  const debtsFirst = state.settings.goal === 'dividas';
   return `<header class="page-head"><div><h1 class="page-title">Planejar</h1></div></header>
     ${monthNav(ui.ym)}
+    ${debtsFirst ? debtsSection() : ''}
     ${goalsSection()}
+    ${debtsFirst ? '' : debtsSection()}
     ${budgetSection()}`;
+}
+
+function openDebtForm(debt = null) {
+  const left = debt ? debtRemaining(debt) : 0;
+  const dlg = openDialog(`<form class="sheet-body" novalidate>
+    ${sheetHeader(debt ? 'Editar dívida' : 'Nova dívida')}
+    <label class="field" for="d-name"><span class="field-label">Nome</span>
+      <input id="d-name" name="name" required maxlength="60" value="${esc(debt?.name || '')}" placeholder="Ex.: cartão de crédito, empréstimo, cheque especial"></label>
+    ${moneyInput({ name: 'balance', label: 'Quanto deve hoje', value: debt ? centsToInput(left) : '', required: true, id: 'd-balance',
+    hint: debt && debt.saved ? `Você já registrou ${fmtBRL(debt.saved)} em pagamentos.` : 'O saldo para quitar hoje (no app do banco ou no boleto).' })}
+    <div class="grid-2">
+      <label class="field" for="d-rate"><span class="field-label">Juros ao mês (%) <small>opcional</small></span>
+        <span class="money-wrap"><input id="d-rate" name="rate" inputmode="decimal" autocomplete="off" placeholder="Ex.: 12"
+          value="${debt?.rate > 0 ? String(+(debt.rate * 100).toFixed(2)).replace('.', ',') : ''}"><span aria-hidden="true">%</span></span></label>
+      ${moneyInput({ name: 'installment', label: 'Parcela por mês (opcional)', value: debt?.installment ? centsToInput(debt.installment) : '', id: 'd-installment' })}
+    </div>
+    <p class="field-hint">Com juros e parcela, o app calcula a ordem de pagamento e em quanto tempo você quita.
+      Não sabe os juros? Veja o CET no contrato ou no app do banco.</p>
+    <p class="form-error" role="alert" hidden></p>
+    <div class="actions">
+      ${debt ? `<button type="button" class="btn ghost danger-text" data-del-debt>${icon('trash', { size: 18 })} Excluir</button>` : ''}
+      <button type="submit" class="btn primary">${debt ? 'Salvar' : 'Cadastrar dívida'}</button>
+    </div>
+  </form>`);
+  const form = dlg.querySelector('form');
+  const err = form.querySelector('.form-error');
+  const fail = (msg, el) => { err.textContent = msg; err.hidden = false; el?.focus(); };
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const balance = parseMoney(form.balance.value);
+    const rateRaw = form.rate.value.trim();
+    const rate = rateRaw ? parseDecimal(rateRaw) / 100 : null;
+    const installment = form.installment.value.trim() ? parseMoney(form.installment.value) : 0;
+    if (!form.name.value.trim()) return fail('Dê um nome para a dívida.', form.name);
+    if (!(balance >= 0) || (!debt && !(balance > 0))) return fail('Informe quanto deve hoje.', form.balance);
+    if (rateRaw && !(rate >= 0 && rate <= 1)) return fail('Juros ao mês entre 0 e 100%.', form.rate);
+    if (!(installment >= 0)) return fail('A parcela não é válida.', form.installment);
+    const saved = debt?.saved || 0;
+    await upsertGoal({
+      ...(debt ? { id: debt.id } : {}), kind: 'divida', icon: '💳', name: form.name.value.trim(),
+      target: saved + balance, saved, rate: rate ?? null, installment: installment || 0, deadline: null,
+    });
+    dlg.close();
+    toast(debt ? 'Dívida atualizada.' : 'Dívida cadastrada.', { tone: 'good' });
+  });
+  form.querySelector('[data-del-debt]')?.addEventListener('click', async () => {
+    dlg.close();
+    if (await confirmDialog({ title: 'Excluir dívida?', text: `"${esc(debt.name)}" sai da lista. Os pagamentos já lançados continuam nos lançamentos.`, confirmLabel: 'Excluir', danger: true })) {
+      await deleteGoal(debt.id);
+      toast('Dívida excluída.');
+    }
+  });
 }
 
 function openGoalForm(goal = null, preset = null) {
   const avg = avgMonthlyExpense(state, currentMonth()) || Math.round((state.settings.income || 0) * 0.8);
   const isReserve = (goal?.kind || preset) === 'reserva';
+  const isInvest = !goal && preset === 'investir';
   const g = goal || {
-    name: isReserve ? 'Reserva de emergência' : '',
-    target: isReserve && avg ? avg * 6 : 0, saved: 0, kind: isReserve ? 'reserva' : 'outro', icon: isReserve ? '🛟' : '🎯', deadline: null,
+    name: isReserve ? 'Reserva de emergência' : isInvest ? 'Primeiro investimento' : '',
+    target: isReserve && avg ? avg * 6 : 0, saved: 0, kind: isReserve ? 'reserva' : 'outro', icon: isReserve ? '🛟' : isInvest ? '🌱' : '🎯', deadline: null,
   };
   const dlg = openDialog(`<form class="sheet-body" novalidate>
     ${sheetHeader(goal ? 'Editar meta' : 'Nova meta')}
@@ -109,7 +207,7 @@ function openGoalForm(goal = null, preset = null) {
       <label class="field" for="g-deadline"><span class="field-label">Prazo (opcional)</span>
         <input id="g-deadline" name="deadline" type="month" min="${currentMonth()}" value="${esc(g.deadline || '')}"></label>
       <label class="field" for="g-icon"><span class="field-label">Ícone</span>
-        <select id="g-icon" name="icon">${['🎯', '🛟', '✈️', '🏠', '🚗', '🎓', '💍', '📱', '👶', '🐾'].map((e) => `<option ${e === g.icon ? 'selected' : ''}>${e}</option>`).join('')}</select></label>
+        <select id="g-icon" name="icon">${['🎯', '🛟', '🌱', '✈️', '🏠', '🚗', '🎓', '💍', '📱', '👶', '🐾'].map((e) => `<option ${e === g.icon ? 'selected' : ''}>${e}</option>`).join('')}</select></label>
     </div>
     <label class="check"><input type="checkbox" name="reserva" ${g.kind === 'reserva' ? 'checked' : ''}><span>Esta é minha reserva de emergência</span></label>
     <p class="form-error" role="alert" hidden></p>
@@ -147,15 +245,18 @@ function openGoalForm(goal = null, preset = null) {
   });
 }
 
+/** Guardar/retirar de uma meta, ou registrar o pagamento de uma dívida (kind 'divida'). */
 function openContribForm(goal, withdraw = false) {
+  const debt = isDebt(goal);
   const dlg = openDialog(`<form class="sheet-body" novalidate>
-    ${sheetHeader(withdraw ? `Retirar de "${goal.name}"` : `Guardar em "${goal.name}"`)}
-    ${moneyInput({ name: 'amount', label: withdraw ? 'Quanto vai retirar' : 'Quanto vai guardar', required: true, id: 'c-amount',
-    hint: withdraw ? `Disponível: ${fmtBRL(goal.saved)}` : '' })}
+    ${sheetHeader(debt ? `Pagamento: ${goal.name}` : withdraw ? `Retirar de "${goal.name}"` : `Guardar em "${goal.name}"`)}
+    ${moneyInput({ name: 'amount', label: debt ? 'Quanto pagou' : withdraw ? 'Quanto vai retirar' : 'Quanto vai guardar', required: true, id: 'c-amount',
+    value: debt && goal.installment ? centsToInput(Math.min(goal.installment, debtRemaining(goal))) : '',
+    hint: debt ? `Faltam ${fmtBRL(debtRemaining(goal))}.` : withdraw ? `Disponível: ${fmtBRL(goal.saved)}` : '' })}
     <label class="check"><input type="checkbox" name="register" checked>
-      <span>Registrar também nos lançamentos do mês <small>(${withdraw ? 'como receita' : 'como despesa em "Guardar e investir"'})</small></span></label>
+      <span>Registrar também nos lançamentos do mês <small>(${debt ? 'como despesa em "Dívidas e parcelas"' : withdraw ? 'como receita' : 'como despesa em "Guardar e investir"'})</small></span></label>
     <p class="form-error" role="alert" hidden></p>
-    <div class="actions"><button type="submit" class="btn primary">${withdraw ? 'Retirar' : 'Guardar'}</button></div>
+    <div class="actions"><button type="submit" class="btn primary">${debt ? 'Registrar pagamento' : withdraw ? 'Retirar' : 'Guardar'}</button></div>
   </form>`);
   const form = dlg.querySelector('form');
   form.addEventListener('submit', async (e) => {
@@ -167,7 +268,8 @@ function openContribForm(goal, withdraw = false) {
       await contributeGoal(goal.id, withdraw ? -v : v, { registerTx: form.register.checked });
       dlg.close();
       const g = goalById(goal.id);
-      toast(withdraw ? `Retirado ${fmtBRL(v)}.` : `Guardado ${fmtBRL(v)}. Agora são ${fmtBRL(g.saved)}.`, { tone: 'good' });
+      toast(debt ? (debtRemaining(g) ? `Pagamento registrado. Faltam ${fmtBRL(debtRemaining(g))}.` : `Dívida quitada: ${esc(g.name)}!`)
+        : withdraw ? `Retirado ${fmtBRL(v)}.` : `Guardado ${fmtBRL(v)}. Agora são ${fmtBRL(g.saved)}.`, { tone: 'good' });
     } catch (ex) {
       err.textContent = ex.message; err.hidden = false;
     }
@@ -208,11 +310,28 @@ export function mount(root, { params }) {
   root.querySelectorAll('[data-contrib]').forEach((b) => b.addEventListener('click', () => openContribForm(goalById(b.dataset.contrib))));
   root.querySelectorAll('[data-withdraw]').forEach((b) => b.addEventListener('click', () => openContribForm(goalById(b.dataset.withdraw), true)));
 
+  root.querySelectorAll('[data-new-debt]').forEach((b) => b.addEventListener('click', () => openDebtForm()));
+  root.querySelectorAll('[data-edit-debt]').forEach((b) => b.addEventListener('click', () => openDebtForm(goalById(b.dataset.editDebt))));
+  root.querySelectorAll('[data-pay]').forEach((b) => b.addEventListener('click', () => openContribForm(goalById(b.dataset.pay))));
+
+  // Atalhos vindos do painel do objetivo, das lições e das dicas (o parâmetro sai da URL ao abrir).
+  if ([...params.keys()].length) history.replaceState(null, '', '#/planejar');
   const preset = params.get('nova-meta');
+  const reserve = state.goals.find((g) => g.kind === 'reserva');
   if (preset) {
-    history.replaceState(null, '', '#/planejar');
-    const existing = preset === 'reserva' && state.goals.find((g) => g.kind === 'reserva');
-    openGoalForm(existing || null, preset);
+    openGoalForm((preset === 'reserva' && reserve) || null, preset);
+  } else if (params.get('guardar') === 'reserva') {
+    if (reserve) openContribForm(reserve); else openGoalForm(null, 'reserva');
+  } else if (params.get('nova-divida')) {
+    openDebtForm();
+  } else if (params.get('pagar')) {
+    const d = goalById(params.get('pagar'));
+    if (d && isDebt(d) && debtRemaining(d) > 0) openContribForm(d);
+  } else if (params.get('sugerir')) {
+    root.querySelector('[data-suggest]')?.click();
+  } else if (params.get('ver') === 'dividas') {
+    // Depois do roteador, que leva a página nova para o topo.
+    setTimeout(() => root.querySelector('#dividas')?.scrollIntoView({ block: 'start' }), 0);
   }
 }
 

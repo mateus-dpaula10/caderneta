@@ -7,6 +7,8 @@ import { computeStreak, newlyUnlocked } from './gamification.js';
 import { GENERATED_TS, mergeProgress, nextStamp, normTs, sameContent, tsMs, unionSkipped } from './merge.js';
 import { textKey, txSignature } from './spreadsheet.js';
 import { isPaidWith } from './finance.js';
+import { debtRemaining, isDebt } from './objective.js';
+import { nextRecall } from './recall.js';
 
 export const SCHEMA_VERSION = 1;
 
@@ -39,6 +41,7 @@ const defaultSettings = () => ({
 
 const defaultProgress = () => ({
   id: 'progress', lessons: {}, achievements: {}, activity: [], bestStreak: 0, flags: {}, dismissedTips: {},
+  reviews: [], recall: {},
 });
 
 export const state = {
@@ -472,7 +475,8 @@ export const deleteGoal = locked(async (id) => {
 });
 
 /**
- * Guarda (valor positivo) ou retira (negativo) dinheiro da meta.
+ * Guarda (valor positivo) ou retira (negativo) dinheiro da meta. Numa dívida (kind 'divida'), é o pagamento:
+ * só valor positivo e até o saldo que falta.
  * Com `registerTx`, também cria o lançamento correspondente no mês.
  */
 export const contributeGoal = locked(async (id, amount, { registerTx = true, date = todayISO() } = {}) => {
@@ -480,17 +484,22 @@ export const contributeGoal = locked(async (id, amount, { registerTx = true, dat
   if (!goal) throw new Error('Meta não encontrada.');
   const value = Math.round(amount);
   if (!value) throw new Error('Informe um valor.');
+  const debt = isDebt(goal);
+  if (debt && value < 0) throw new Error('Para mudar o saldo da dívida, use o botão de editar.');
+  if (debt && value > debtRemaining(goal)) throw new Error('O pagamento passa do saldo que falta da dívida.');
   if (value < 0 && -value > goal.saved) throw new Error('Não dá para retirar mais do que está guardado.');
   goal.saved += value;
   goal.history = [...(goal.history || []), { date, amount: value }].slice(-200);
   await persist('goals', goal);
   if (registerTx) {
+    // Pagamento de dívida vai para "Dívidas e parcelas" (se a categoria foi apagada, para "Outros gastos").
+    const debtCat = categoryById('dividas') ? 'dividas' : 'outros';
     await _addTransaction({
       type: value > 0 ? 'expense' : 'income',
       amount: Math.abs(value),
       date,
-      categoryId: value > 0 ? 'investimentos' : 'outras-receitas',
-      description: value > 0 ? `Guardado na meta: ${goal.name}` : `Retirado da meta: ${goal.name}`,
+      categoryId: debt ? debtCat : value > 0 ? 'investimentos' : 'outras-receitas',
+      description: debt ? `Pagamento: ${goal.name}` : value > 0 ? `Guardado na meta: ${goal.name}` : `Retirado da meta: ${goal.name}`,
       nature: 'variavel',
     });
   } else {
@@ -512,6 +521,28 @@ export const saveLessonResult = locked(async (lessonId, correct, total, { silent
   };
   await persist('meta', state.progress);
   await afterChange(silent ? 'progress:silent' : 'progress');
+});
+
+/** Revisão da semana concluída: guarda o dia (uma entrada por dia; a sequência conta semanas). */
+export const completeReview = locked(async () => {
+  const today = todayISO();
+  const list = state.progress.reviews || [];
+  if (!list.includes(today)) state.progress.reviews = [...list, today].sort().slice(-260);
+  recordActivity();
+  await persist('meta', state.progress);
+  await afterChange('progress');
+});
+
+/**
+ * Resposta a uma pergunta que voltou (js/recall.js): agenda a próxima volta. Grava sem redesenhar a tela
+ * (`silent`), para a pessoa continuar vendo a explicação da resposta.
+ */
+export const saveRecallAnswer = locked(async (key, correct) => {
+  const recall = { ...(state.progress.recall || {}) };
+  recall[key] = nextRecall(recall[key], correct);
+  state.progress.recall = recall;
+  await persist('meta', state.progress);
+  await afterChange('progress:silent');
 });
 
 export const dismissTip = locked(async (tipKey) => {

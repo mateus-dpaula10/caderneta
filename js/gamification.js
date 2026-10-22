@@ -2,6 +2,7 @@
 import { addDays, addMonths, currentMonth, todayISO } from './utils.js';
 import { monthSummary, reserveMonths } from './finance.js';
 import { LESSONS } from './lessons.js';
+import { debtRemaining, isDebt, reviewStreak } from './objective.js';
 
 /** Sequência atual: dias seguidos com registro, terminando hoje ou ontem. */
 export function computeStreak(activity, today = todayISO()) {
@@ -56,7 +57,22 @@ export const ACHIEVEMENTS = [
   {
     id: 'primeira-meta', title: 'Mira no futuro', icon: '🎯',
     text: 'Criou a primeira meta de economia.',
-    check: (s) => s.goals.length > 0,
+    check: (s) => s.goals.some((g) => !isDebt(g)),
+  },
+  {
+    id: 'divida-quitada', title: 'Uma a menos', icon: '🧯',
+    text: 'Quitou uma dívida cadastrada.',
+    check: (s) => s.goals.some((g) => isDebt(g) && g.target > 0 && debtRemaining(g) === 0),
+  },
+  {
+    id: 'primeira-revisao', title: 'Olhando de perto', icon: '🔎',
+    text: 'Fez a primeira revisão da semana.',
+    check: (s) => (s.progress.reviews || []).length > 0,
+  },
+  {
+    id: 'revisao-4', title: 'Um mês de revisões', icon: '📆',
+    text: 'Fez a revisão da semana 4 semanas seguidas.',
+    check: (s) => reviewStreak(s.progress.reviews) >= 4,
   },
   {
     id: 'reserva-1-mes', title: 'Colchão', icon: '🛟',

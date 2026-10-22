@@ -1,6 +1,6 @@
 /* Service worker da Caderneta: cache do app shell (offline-first).
    Ao mudar qualquer arquivo do app, aumente VERSION para os aparelhos baixarem a versão nova. */
-const VERSION = 'v1.5.0';
+const VERSION = 'v1.6.0';
 const CACHE = `caderneta-${VERSION}`;
 
 // Sem './index.html': servidores como o `npx serve` redirecionam /index.html -> /index,
@@ -20,6 +20,7 @@ const SHELL = [
   './js/spreadsheet.js',
   './js/app-shell.js',
   './js/calc.js',
+  './js/calendar.js',
   './js/charts.js',
   './js/db.js',
   './js/finance.js',
@@ -27,14 +28,19 @@ const SHELL = [
   './js/icons.js',
   './js/insights.js',
   './js/lessons.js',
+  './js/objective.js',
+  './js/recall.js',
   './js/store.js',
   './js/ui.js',
   './js/utils.js',
   './js/views/category-form.js',
+  './js/views/coach.js',
   './js/views/home.js',
   './js/views/learn.js',
   './js/views/onboarding.js',
   './js/views/plan.js',
+  './js/views/reminders.js',
+  './js/views/review.js',
   './js/views/settings.js',
   './js/views/spreadsheet-dialog.js',
   './js/views/tools.js',

@@ -118,7 +118,7 @@ export function buildInsights(state, ym = currentMonth()) {
   }
 
   // 6) Metas com prazo
-  for (const g of state.goals.filter((x) => x.deadline && x.saved < x.target)) {
+  for (const g of state.goals.filter((x) => x.kind !== 'divida' && x.deadline && x.saved < x.target)) {
     const need = monthlyNeeded(g, ym);
     if (!need) continue;
     tips.push({

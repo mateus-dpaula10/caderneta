@@ -1,4 +1,4 @@
-// Início: saldo do mês, régua 50/30/20, dicas contextuais, gráficos, metas e próxima lição.
+// Início: saldo do mês, régua 50/30/20, painel do objetivo, pergunta para fixar, dicas, gráficos, metas e próxima lição.
 import { state, dismissTip } from '../store.js';
 import { ui, monthNav } from '../ui.js';
 import { esc, fmtBRL, monthLabel, currentMonth, monthShort, fmtPct } from '../utils.js';
@@ -7,10 +7,14 @@ import { buildInsights, nextLesson } from '../insights.js';
 import { categoryBars, monthBars, ring } from '../charts.js';
 import { computeStreak } from '../gamification.js';
 import { lessonById } from '../lessons.js';
+import { savingGoalsOf } from '../objective.js';
+import { objectiveBlock, dueRecall, recallCards, mountRecall } from './coach.js';
 import { icon } from '../icons.js';
 
 const TONE_ICON = { alert: 'alert', warn: 'alert', good: 'check', info: 'bulb' };
 const TONE_LABEL = { alert: 'Atenção', warn: 'Cuidado', good: 'Bom sinal', info: 'Dica' };
+
+let recallItems = [];
 
 function greeting() {
   const h = new Date().getHours();
@@ -101,7 +105,8 @@ export function render() {
   const months = lastMonths(state, ym, 6).map((m) => ({ ...m, label: monthShort(m.ym), current: m.ym === ym }));
   const hasHistory = months.some((m) => m.count > 0);
   const lesson = nextLesson(state);
-  const goals = state.goals.slice(0, 3);
+  const goals = savingGoalsOf(state).slice(0, 3); // dívidas aparecem no painel do objetivo e em Planejar
+  recallItems = isCurrent ? dueRecall(1) : [];
 
   return `
   <header class="page-head">
@@ -131,6 +136,9 @@ export function render() {
     <h3 class="ruler-title">Para onde foi a renda</h3>
     ${ruler(s, income)}
   </section>
+
+  ${objectiveBlock()}
+  ${recallCards(recallItems)}
 
   ${tips.length ? `<section class="block" aria-labelledby="tips-title">
     <div class="block-head"><h2 id="tips-title">Para você</h2></div>
@@ -172,6 +180,7 @@ export function render() {
 }
 
 export function mount(root, { rerender }) {
+  mountRecall(root, recallItems);
   root.querySelectorAll('[data-dismiss]').forEach((b) => b.addEventListener('click', async () => {
     await dismissTip(b.dataset.dismiss);
     rerender();

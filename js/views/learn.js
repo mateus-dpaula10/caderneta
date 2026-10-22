@@ -1,7 +1,7 @@
 // Aprender: trilha de micro-aulas na ordem do objetivo da pessoa, quiz, conquistas e sequência.
 import { state, saveLessonResult, saveSettings } from '../store.js';
 import { esc, fmtBRL, fmtPct, currentMonth } from '../utils.js';
-import { LESSONS, lessonById, DISCLAIMER, goalTrack, nextLessonFor } from '../lessons.js';
+import { LESSONS, lessonById, DISCLAIMER, goalTrack, nextLessonFor, lessonAction } from '../lessons.js';
 import { ACHIEVEMENTS, computeStreak } from '../gamification.js';
 import { GOAL_TYPES, avgMonthlyExpense } from '../finance.js';
 import { openDialog, sheetHeader, toast } from '../ui.js';
@@ -95,6 +95,7 @@ function lessonPage(l) {
     fmtBRL, fmtPct,
   };
   const personal = l.personal ? l.personal(ctx) : null;
+  const action = lessonAction(l, state);
   return `<nav class="crumbs" aria-label="Você está em"><a href="#/aprender">${icon('left', { size: 18 })} Trilha</a></nav>
   <article class="lesson" aria-labelledby="lesson-h1">
     <header class="lesson-head">
@@ -107,6 +108,8 @@ function lessonPage(l) {
     ${l.body.map((s) => `<section class="lesson-sec"><h2>${esc(s.h)}</h2>${s.html}</section>`).join('')}
     ${personal ? `<aside class="personal">${icon('bulb', { size: 20 })}<div><p class="personal-title">Com os seus números</p><p>${personal}</p></div></aside>` : ''}
     <section class="lesson-sec takeaways"><h2>Para lembrar</h2><ul>${l.takeaways.map((t) => `<li>${esc(t)}</li>`).join('')}</ul></section>
+    ${action ? `<aside class="do-now" aria-labelledby="do-now-title"><p class="do-now-title" id="do-now-title">Faça agora</p>
+      <a class="btn primary" href="${action.href}">${esc(action.label)}</a></aside>` : ''}
 
     <form class="quiz" id="quiz" novalidate aria-labelledby="quiz-title">
       <h2 id="quiz-title">Quiz rápido</h2>

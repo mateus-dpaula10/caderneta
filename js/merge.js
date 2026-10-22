@@ -94,10 +94,33 @@ const earliest = (x, y) => (tsMs(x) && tsMs(y) ? (tsMs(x) <= tsMs(y) ? x : y) : 
 const latest = (x, y) => (tsMs(x) && tsMs(y) ? (tsMs(x) >= tsMs(y) ? x : y) : x ?? y);
 
 /**
+ * Perguntas que voltam ({chave: {box, due, at}}): fica a resposta mais recente de cada pergunta. Empate no
+ * horário decide pela caixa maior e depois pela data, para os dois aparelhos chegarem ao mesmo resultado.
+ */
+function mergeRecall(a, b) {
+  const out = { ...(isObj(b) ? b : {}) };
+  for (const [k, v] of Object.entries(isObj(a) ? a : {})) {
+    const w = out[k];
+    if (!isObj(w)) { out[k] = v; continue; }
+    if (!isObj(v)) continue;
+    const ta = tsMs(v.at);
+    const tb = tsMs(w.at);
+    const aWins = ta > tb || (ta === tb && ((Number(v.box) || 0) > (Number(w.box) || 0)
+      || ((Number(v.box) || 0) === (Number(w.box) || 0) && String(v.due) > String(w.due))));
+    if (aWins) out[k] = v;
+  }
+  return out;
+}
+
+const unionDays = (a, b, max) => [...new Set([...(Array.isArray(a) ? a : []), ...(Array.isArray(b) ? b : [])])]
+  .filter((d) => typeof d === 'string').sort().slice(-max);
+
+/**
  * Junta o progresso (lições, conquistas, sequência) de dois aparelhos sem perder nada:
  *  - activity: união dos dias;  bestStreak: o maior (e no mínimo a sequência da união);
  *  - lições: concluída se concluída em qualquer um, melhor nota, tentativas somadas por aparelho;
- *  - conquistas: união (fica a data da primeira vez);  flags/dicas dispensadas: união (fica a mais recente).
+ *  - conquistas: união (fica a data da primeira vez);  flags/dicas dispensadas: união (fica a mais recente);
+ *  - reviews (dias de revisão da semana): união;  recall (perguntas que voltam): a resposta mais recente de cada uma.
  * `deviceId` identifica as tentativas antigas (sem `attemptsBy`) deste aparelho.
  */
 export function mergeProgress(local, remote, deviceId = 'local') {
@@ -109,8 +132,7 @@ export function mergeProgress(local, remote, deviceId = 'local') {
   for (const id of new Set([...Object.keys(LL), ...Object.keys(RL)])) {
     lessons[id] = mergeLesson(LL[id], RL[id], deviceId, 'legacy');
   }
-  const activity = [...new Set([...(Array.isArray(L.activity) ? L.activity : []), ...(Array.isArray(R.activity) ? R.activity : [])])]
-    .filter((d) => typeof d === 'string').sort().slice(-400);
+  const activity = unionDays(L.activity, R.activity, 400);
   return {
     ...R,
     ...L,
@@ -120,6 +142,8 @@ export function mergeProgress(local, remote, deviceId = 'local') {
     flags: mergeStampMap(L.flags, R.flags, latest),
     dismissedTips: mergeStampMap(L.dismissedTips, R.dismissedTips, latest),
     activity,
+    reviews: unionDays(L.reviews, R.reviews, 260),
+    recall: mergeRecall(L.recall, R.recall),
     bestStreak: Math.max(Number(L.bestStreak) || 0, Number(R.bestStreak) || 0, computeStreak(activity)),
   };
 }

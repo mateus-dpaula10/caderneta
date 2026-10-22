@@ -1,4 +1,4 @@
-// Ajustes: perfil, tema, categorias, conta e sincronização (opcional), backup, planilha do Excel, instalação e dados.
+// Ajustes: perfil, lembretes no calendário, tema, categorias, conta e sincronização (opcional), backup, planilha do Excel, instalação e dados.
 import { state, saveSettings, exportData, importData, resetAll, setFlag, categoryById } from '../store.js';
 import { toast, confirmDialog, moneyInput, downloadFile } from '../ui.js';
 import { esc, fmtBRL, parseMoney, centsToInput, todayISO } from '../utils.js';
@@ -9,6 +9,7 @@ import { applyTheme, install } from '../app-shell.js';
 import { renderAccountBlock, mountAccountBlock, isSyncLinked } from '../account.js';
 import { openCategoryForm } from './category-form.js';
 import { renderSheetActions, mountSheetActions } from './spreadsheet-dialog.js';
+import { openReminders } from './reminders.js';
 
 const STORAGE_TEXT = {
   indexeddb: 'Seus dados estão salvos neste aparelho (IndexedDB).',
@@ -29,9 +30,17 @@ export function render() {
       ${moneyInput({ name: 'income', label: 'Renda mensal líquida', value: s.income ? centsToInput(s.income) : '', id: 's-income', hint: 'O que cai na conta por mês. Usado na régua 50/30/20 e nas dicas.' })}
       <label class="field" for="s-goal"><span class="field-label">Objetivo principal</span>
         <select id="s-goal" name="goal" aria-describedby="s-goal-hint">${Object.entries(GOAL_TYPES).map(([k, g]) => `<option value="${k}" ${k === s.goal ? 'selected' : ''}>${g.label}</option>`).join('')}</select>
-        <span class="field-hint" id="s-goal-hint">Define a ordem das lições em Aprender e a lição recomendada.</span></label>
+        <span class="field-hint" id="s-goal-hint">Define o painel do objetivo no Início, a trilha de Aprender e a lição recomendada.</span></label>
       <div class="actions"><button class="btn primary" type="submit">Salvar perfil</button></div>
     </form>
+  </section>
+
+  <section class="block" aria-labelledby="remind-title">
+    <div class="block-head"><h2 id="remind-title">Lembretes</h2></div>
+    <p class="lead">Coloque no calendário do celular a revisão da semana, o dia do salário (para separar a parte do futuro
+      antes de gastar) e o vencimento das contas. O calendário avisa mesmo com o app fechado.</p>
+    <button type="button" class="btn ghost" data-reminders>${icon('calendar', { size: 18 })} Configurar lembretes no calendário</button>
+    ${s.reminders?.savedAt ? `<p class="muted small">Arquivo gerado em ${new Date(s.reminders.savedAt).toLocaleDateString('pt-BR')}.</p>` : ''}
   </section>
 
   <section class="block" aria-labelledby="theme-title">
@@ -108,6 +117,8 @@ export function mount(root, { rerender, showOnboarding }) {
     applyTheme(r.value);
     await saveSettings({ theme: r.value });
   }));
+
+  root.querySelector('[data-reminders]').addEventListener('click', () => openReminders());
 
   mountAccountBlock(root);
 

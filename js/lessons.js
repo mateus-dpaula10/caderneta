@@ -804,6 +804,36 @@ export const LESSONS = [
 
 export const lessonById = (id) => LESSONS.find((l) => l.id === id);
 
+// ---------- Faça agora ----------
+// O passo prático no fim da lição: leva direto à tela que aplica o que foi ensinado. Recebe o estado do app
+// (para escolher entre criar e continuar) e devolve { label, href }; lição sem ação não aparece no mapa.
+const reserveAction = (s) => (s.goals.some((g) => g.kind === 'reserva')
+  ? { label: 'Guardar na reserva agora', href: '#/planejar?guardar=reserva' }
+  : { label: 'Criar a meta da reserva', href: '#/planejar?nova-meta=reserva' });
+const debtAction = (s) => (s.goals.some((g) => g.kind === 'divida')
+  ? { label: 'Ver a ordem de pagamento', href: '#/planejar?ver=dividas' }
+  : { label: 'Cadastrar minhas dívidas', href: '#/planejar?nova-divida=1' });
+const LESSON_ACTIONS = {
+  orcamento: (s) => {
+    if (!(s.settings.income > 0)) return { label: 'Informar minha renda', href: '#/ajustes' };
+    return s.categories.some((c) => c.type === 'expense' && c.budget > 0)
+      ? { label: 'Ver meus limites do mês', href: '#/planejar' }
+      : { label: 'Aplicar o 50/30/20 nos meus limites', href: '#/planejar?sugerir=1' };
+  },
+  reserva: reserveAction,
+  'plano-reserva': reserveAction,
+  dividas: debtAction,
+  'plano-dividas': debtAction,
+  'plano-organizar': () => ({ label: 'Fazer a revisão da semana', href: '#/revisao' }),
+  consumo: () => ({ label: 'Ver meus gastos por categoria', href: '#/inicio' }),
+  'juros-compostos': () => ({ label: 'Simular com o valor que consigo investir', href: '#/ferramentas' }),
+  investimentos: () => ({ label: 'Simular um investimento', href: '#/ferramentas' }),
+  'plano-investir': () => ({ label: 'Criar a meta do primeiro investimento', href: '#/planejar?nova-meta=investir' }),
+};
+
+/** Ação "Faça agora" da lição ({ label, href }) ou null. */
+export const lessonAction = (lesson, state) => LESSON_ACTIONS[lesson.id]?.(state) || null;
+
 // ---------- Trilha por objetivo ----------
 // O objetivo vem de settings.goal (os mesmos de GOAL_TYPES em js/finance.js: escolhido na apresentação inicial,
 // editável em Ajustes ou no próprio Aprender). `essentials`: as lições essenciais para o objetivo, na ordem em que

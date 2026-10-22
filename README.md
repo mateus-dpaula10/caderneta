@@ -68,6 +68,10 @@ Publique em qualquer hospedagem estática com HTTPS (Netlify, Vercel, GitHub Pag
    proporcional ao histórico de gastos.
 5. Metas de economia (reserva de emergência e outras) com progresso, prazo e "quanto guardar por mês";
    guardar/retirar pode gerar o lançamento correspondente.
+   **Minhas dívidas** (Planejar): cada dívida com saldo, juros ao mês e parcela, na ordem do método avalanche (juros mais
+   altos primeiro), com a previsão de quitação e o aviso de parcela que não cobre os juros. "Paguei" registra o pagamento
+   (lançamento em "Dívidas e parcelas"). Por dentro, a dívida é uma meta com `kind: 'divida'` (`target` = quanto devia,
+   `saved` = quanto já pagou, mais `rate` e `installment`): sincroniza, entra no backup e não precisa de mudança no banco.
 6. Exportar/importar backup JSON (importação validada e atômica: arquivo inválido não altera nada).
 7. **Planilha do Excel** (Lançamentos → Planilha, ou Ajustes → Planilha do Excel):
    - *Baixar planilha modelo (.xlsx)*: aba "Lançamentos" (Data, Tipo, Categoria, Descrição, Valor (R$), Natureza, Pago,
@@ -107,13 +111,28 @@ Publique em qualquer hospedagem estática com HTTPS (Netlify, Vercel, GitHub Pag
    - Sair das dívidas: plano, dívidas, orçamento, consumo consciente, golpes | depois reserva, juros compostos, inflação, investimentos.
    - Começar a investir: antes do primeiro investimento, juros compostos, inflação, reserva, investimentos, golpes | depois orçamento, consumo consciente, dívidas.
    (As lições de objetivo dos outros objetivos ficam no fim de "Outras lições".)
+   Toda lição com passo prático termina em **"Faça agora"**, um botão que abre a tela que aplica o assunto (criar a meta
+   da reserva, cadastrar as dívidas, aplicar o 50/30/20, fazer a revisão da semana…): `lessonAction` em `js/lessons.js`.
+   **Perguntas que voltam** (`js/recall.js`): as perguntas dos quizzes de lições concluídas reaparecem no Início
+   ("Pergunta para fixar") e na revisão da semana 1, 3, 7, 21 e 60 dias depois; errou, volta no dia seguinte.
+   Ficam em `progress.recall`.
+8b. **Painel do objetivo** no Início (`js/objective.js`): o objetivo vira um número que anda e um próximo passo. Reserva:
+   quanto já guardou, quantos meses cobre e o próximo degrau (1, 3, 6 meses). Dívidas: quanto falta quitar, a prioridade e
+   quando fica livre. Organizar e investir: checklist calculado do que a pessoa já fez no app (registro, contas fixas,
+   limites, revisão; sem dívida cara, reserva de 3 meses, mês no azul, meta de investimento).
+8c. **Revisão da semana** (`#/revisao`, fora do menu; aberta pelo Início, pelas lições e pelo lembrete): 4 passos em uns
+   2 minutos: lançar o que faltou, marcar as contas atrasadas ou que vencem em 7 dias, ver o objetivo e responder as
+   perguntas que voltaram. Conta "semanas seguidas" (semana de segunda a domingo; `progress.reviews`).
+8d. **Lembretes no calendário** (Ajustes → Lembretes, e no fim da revisão): gera um `.ics` (`js/calendar.js`) com a revisão
+   semanal (dia e hora à escolha), o dia do salário (com o que separar de acordo com o objetivo) e o vencimento das contas
+   fixas e das a pagar nos próximos 60 dias (aviso um dia antes). Funciona em qualquer celular, sem servidor e sem conta.
 9. Dicas contextuais geradas dos dados (déficit, contas atrasadas, orçamento estourado, categoria que subiu, peso das dívidas,
    reserva, metas com prazo, 50/30/20, sobra parada, hábito de registro).
 10. Simuladores: juros compostos (com gráfico), tempo até a meta, custo real do parcelamento (juros embutidos
     no "sem juros") e quitação de dívida (detecta quando o pagamento não cobre os juros).
 11. Onboarding (renda, objetivo, situação) que personaliza dicas e a lição recomendada e pode já criar
     renda recorrente, limites 50/30/20 e a meta de reserva.
-12. Gamificação leve: sequência de dias registrando e 11 conquistas.
+12. Gamificação leve: sequência de dias registrando, semanas seguidas com revisão e 14 conquistas.
 
 **Conta e sincronização (opcional)**
 13. Ajustes → Conta e sincronização: criar conta, entrar, esqueci a senha, status (último sync, pendências,
@@ -130,7 +149,7 @@ financas-pwa/
 ├── css/styles.css           # tokens de cor claro/escuro + layout mobile-first
 ├── icons/                   # icon.svg, icon-maskable.svg, 192/512/maskable PNG, apple-touch-icon
 └── js/
-    ├── app.js               # boot, rotas (#/inicio, #/lancamentos, #/planejar, #/aprender, #/ferramentas, #/ajustes)
+    ├── app.js               # boot, rotas (#/inicio, #/lancamentos, #/planejar, #/aprender, #/ferramentas, #/ajustes, #/revisao)
     ├── app-shell.js         # tema, instalação, registro do SW
     ├── db.js                # IndexedDB (v2: + outbox, syncstate) / localStorage / memória
     ├── config.js            # URL e chave PÚBLICA do Supabase; caminhos das bibliotecas em vendor/
@@ -144,12 +163,16 @@ financas-pwa/
     ├── finance.js           # cálculos de mês, 50/30/20, orçamento, reserva
     ├── insights.js          # dicas contextuais (dados → lições)
     ├── lessons.js           # conteúdo das micro-aulas e quizzes
+    ├── objective.js         # painel do objetivo, dívidas (ordem avalanche), semanas de revisão (funções puras)
+    ├── recall.js            # perguntas que voltam: repetição espaçada dos quizzes (funções puras)
+    ├── calendar.js          # arquivo .ics dos lembretes (função pura)
     ├── calc.js              # simuladores (funções puras)
     ├── gamification.js      # sequência e conquistas
     ├── charts.js            # gráficos SVG sem dependência
     ├── ui.js, icons.js, utils.js
     └── views/               # home, transactions, txform, plan, learn, tools, settings, onboarding,
-                             # category-form (criar/editar categoria), spreadsheet-dialog (baixar/importar planilha)
+                             # category-form (criar/editar categoria), spreadsheet-dialog (baixar/importar planilha),
+                             # review (revisão da semana), coach (painel do objetivo e pergunta para fixar), reminders
 ```
 
 Valores monetários são guardados em **centavos inteiros** (sem erro de ponto flutuante). Datas são locais
@@ -174,7 +197,8 @@ A conta é **opcional**. Sem login, nada muda: os dados ficam só no aparelho e 
 - Cada rodada: baixa o que mudou desde o último cursor (`server_updated_at`, com 30 s de margem), aplica sem pisar em alteração
   local mais nova, e envia a fila em lotes (upsert por `user_id,id`). Só sai da fila o que foi enviado e não mudou durante o envio.
   Em conflito vence a edição mais recente (`client_updated_at`, regra aplicada pelo gatilho do banco); o **progresso das lições é
-  juntado** (dias de atividade, melhor nota, tentativas por aparelho, conquistas), nada se perde entre aparelhos.
+  juntado** (dias de atividade, melhor nota, tentativas por aparelho, conquistas, dias de revisão da semana e, nas perguntas
+  que voltam, a resposta mais recente de cada uma), nada se perde entre aparelhos.
 - Recorrências: as ocorrências têm id fixo (`<série>:<AAAA-MM>`), então dois aparelhos não duplicam; a ocorrência gerada
   automaticamente leva o carimbo mais antigo possível, então qualquer edição ou exclusão feita em outro aparelho sempre vence.
   Meses apagados de uma série (`skipped`) são unidos entre aparelhos.
