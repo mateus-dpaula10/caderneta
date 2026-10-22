@@ -1,6 +1,8 @@
 // Trilha de micro-aulas. Conteúdo educativo, linguagem simples, sem recomendar produto específico.
 // `personal(ctx)` devolve um trecho calculado com os dados da própria pessoa (ou null).
 // ctx = { income, avgExpense, fmtBRL, fmtPct }  — valores em centavos.
+// `goalNotes[objetivo]`: como a lição se liga àquele objetivo (aparece no topo da lição para quem o escolheu).
+// `goal`: só nas lições de objetivo (uma por objetivo, abrem a trilha dele).
 
 export const DISCLAIMER =
   'Conteúdo educativo. Não é recomendação de investimento nem consultoria financeira. ' +
@@ -13,6 +15,14 @@ export const LESSONS = [
     title: 'Orçamento: para onde vai o seu dinheiro',
     minutes: 4,
     summary: 'Registrar, separar gastos fixos e variáveis e usar o método 50/30/20 como ponto de partida.',
+    goalNotes: {
+      organizar: `Esta é a base do seu objetivo: organizar é saber para onde vai cada real. Os seus lançamentos são o
+        registro, e o <strong>Orçamento do mês</strong>, em Planejar, dá um limite para cada categoria.`,
+      reserva: `A reserva sai daqui: é a fatia dos 20% para o futuro. Separe a parcela da reserva assim que o salário
+        cair, antes dos outros gastos (é o "pague-se primeiro").`,
+      dividas: `O orçamento mostra a folga real do mês para pagar as dívidas. Enquanto houver dívida cara, os 20% do
+        futuro e o que der para tirar dos desejos vão para quitar, começando pelos juros mais altos.`,
+    },
     body: [
       {
         h: 'Primeiro, enxergar',
@@ -76,6 +86,14 @@ export const LESSONS = [
     title: 'Reserva de emergência',
     minutes: 4,
     summary: 'Quanto guardar, onde deixar e por que ela vem antes de investir para ganhar mais.',
+    goalNotes: {
+      organizar: `Com as contas organizadas, a reserva é o passo seguinte: ela impede que um imprevisto desfaça o que
+        você arrumou. Comece com uma meta de um mês de gastos.`,
+      reserva: `Esta lição é o seu objetivo em detalhe. Ao final, crie a meta em <strong>Planejar → Metas de
+        economia</strong> com o valor calculado a partir dos seus gastos.`,
+      investir: `Antes de investir para ganhar mais, a reserva precisa estar pronta: é ela que evita vender um
+        investimento no prejuízo quando aparece um imprevisto.`,
+    },
     body: [
       {
         h: 'Para que serve',
@@ -138,6 +156,12 @@ export const LESSONS = [
     title: 'Dívidas e juros: cartão e cheque especial',
     minutes: 5,
     summary: 'Por que o rotativo e o cheque especial são tão caros e como sair deles.',
+    goalNotes: {
+      organizar: `Organizar as contas inclui não deixar a fatura virar rotativo. Marque o que já foi pago e o que está
+        a pagar, e acompanhe o que saiu do cartão para a fatura não surpreender.`,
+      dividas: `Esta é a lição central do seu objetivo. Depois dela, use a calculadora <strong>Custo de
+        dívida</strong>, em Ferramentas, para ver quanto cada uma das suas dívidas custa de verdade.`,
+    },
     body: [
       {
         h: 'Os juros mais caros do mercado',
@@ -206,6 +230,10 @@ export const LESSONS = [
     title: 'Juros compostos: juros sobre juros',
     minutes: 4,
     summary: 'Como o tempo multiplica o dinheiro (ou a dívida) e a regra dos 72.',
+    goalNotes: {
+      investir: `É o motor do seu objetivo: aportes constantes por muito tempo valem mais que um valor alto uma vez só.
+        Simule em <strong>Ferramentas → Juros compostos</strong> com o valor que você consegue investir por mês.`,
+    },
     body: [
       {
         h: 'Simples x compostos',
@@ -260,6 +288,12 @@ export const LESSONS = [
     title: 'Inflação e poder de compra',
     minutes: 3,
     summary: 'Por que o mesmo dinheiro compra menos com o tempo e o que é juro real.',
+    goalNotes: {
+      reserva: `Reserva parada na conta corrente perde valor todo ano. Por isso ela precisa render pelo menos perto da
+        inflação, sem abrir mão de segurança e de poder sacar rápido.`,
+      investir: `Ao comparar investimentos, olhe o ganho acima da inflação (o juro real). Um rendimento que parece alto
+        pode ficar pequeno depois de descontar o IPCA.`,
+    },
     body: [
       {
         h: 'O que é',
@@ -310,6 +344,12 @@ export const LESSONS = [
     title: 'Investimentos básicos: poupança, Tesouro e CDB',
     minutes: 6,
     summary: 'Como funcionam as aplicações de renda fixa mais conhecidas, seus riscos e impostos.',
+    goalNotes: {
+      reserva: `Para a reserva, servem as opções de baixo risco e resgate diário desta lição. Prefixado e IPCA+ oscilam
+        se vendidos antes do vencimento e combinam mais com objetivos longos.`,
+      investir: `Esta é a lição central do seu objetivo. Repare como cada opção equilibra risco, liquidez e
+        rentabilidade, e associe cada uma a um prazo: dinheiro de curto prazo pede liquidez; o de longo prazo aguenta oscilação.`,
+    },
     body: [
       {
         h: 'Antes de investir',
@@ -382,6 +422,14 @@ export const LESSONS = [
     title: 'Consumo consciente',
     minutes: 3,
     summary: 'Ferramentas simples para comprar com intenção, sem culpa e sem impulso.',
+    goalNotes: {
+      organizar: `Depois de registrar, os gastos variáveis são onde você ajusta mais rápido. Veja no Início quais
+        categorias pesam mais e comece por elas.`,
+      reserva: `Cada compra adiada ou assinatura cancelada é dinheiro que pode ir direto para a reserva. Experimente
+        guardar na meta o valor que você deixou de gastar.`,
+      dividas: `Enquanto estiver pagando dívidas, evite novas parcelas: elas disputam a mesma renda que precisa quitar
+        o que já existe. A regra das 24 horas ajuda muito aqui.`,
+    },
     body: [
       {
         h: 'Quanto trabalho isso custa?',
@@ -438,6 +486,12 @@ export const LESSONS = [
     title: 'Golpes financeiros: como se proteger',
     minutes: 4,
     summary: 'Os golpes mais comuns no Pix, no WhatsApp e em falsos investimentos, e o que fazer se cair em um.',
+    goalNotes: {
+      dividas: `Quem está endividado vira alvo de "empréstimo fácil" e "limpa nome" que pedem pagamento adiantado.
+        Instituição séria não cobra taxa antes de liberar crédito: confira se ela é autorizada pelo Banco Central.`,
+      investir: `Quem começa a investir é o alvo preferido de pirâmides e falsos gurus. Retorno alto e garantido não
+        existe: confira sempre se a empresa é autorizada pela CVM ou pelo Banco Central.`,
+    },
     body: [
       {
         h: 'Os mais comuns',
@@ -494,6 +548,258 @@ export const LESSONS = [
       },
     ],
   },
+
+  // ---------- Lições de objetivo ----------
+  // Uma por objetivo (`goal`), abre a trilha dele: o passo a passo prático, ligando o conteúdo às telas do app.
+  {
+    id: 'plano-organizar',
+    goal: 'organizar',
+    icon: '🗂️',
+    title: 'Organize as contas em 4 semanas',
+    minutes: 4,
+    summary: 'Um roteiro de um mês para sair do "não sei para onde vai o dinheiro" e criar uma rotina que dura.',
+    body: [
+      {
+        h: 'Semana 1: registre tudo',
+        html: `<p>Lance no app <strong>todo</strong> dinheiro que entra e sai, inclusive Pix pequenos e taxas. Não
+        tente mudar nada ainda: a meta da primeira semana é só enxergar. Contas que ainda vão vencer entram como
+        <strong>a pagar</strong>; as que já saíram, como pagas.</p>`,
+      },
+      {
+        h: 'Semana 2: separe fixos e cartão',
+        html: `<p>Nas contas que se repetem (aluguel, internet, escola), marque <strong>Repetir todo mês</strong> e indique de onde
+        cada despesa saiu: <strong>salário</strong> ou <strong>cartão</strong>. O que foi no cartão hoje é a fatura
+        do mês que vem, e é aí que muita gente perde o controle.</p>`,
+      },
+      {
+        h: 'Semana 3: dê um limite a cada categoria',
+        html: `<p>Em Planejar, use o <strong>Orçamento do mês</strong> para definir quanto pode ir para mercado,
+        lazer, delivery e o resto. O 50/30/20 serve de ponto de partida. Limite não é proibição: é o aviso de
+        que está na hora de frear.</p>`,
+      },
+      {
+        h: 'Semana 4: crie a rotina',
+        html: `<p>Reserve 10 minutos por semana, sempre no mesmo dia, para lançar o que faltou, conferir as contas
+        a pagar e ver quanto ainda cabe em cada categoria. Organização é hábito, não faxina de uma vez só.</p>`,
+      },
+    ],
+    personal: (ctx) => ctx.income > 0
+      ? `Com a sua renda de <strong>${ctx.fmtBRL(ctx.income)}</strong>, os 30% de desejos dão cerca de
+         <strong>${ctx.fmtBRL(ctx.income * 0.3 / 4.3)}</strong> por semana. É um bom número para acompanhar na revisão semanal.`
+      : null,
+    takeaways: ['Primeiro enxergar, depois mudar.', 'Gasto no cartão hoje é fatura no mês que vem.', '10 minutos por semana mantêm tudo em dia.'],
+    quiz: [
+      {
+        q: 'Qual é a meta da primeira semana de organização?',
+        options: ['Cortar todos os gastos com lazer', 'Registrar tudo, sem tentar mudar nada ainda', 'Quitar todas as dívidas'],
+        answer: 1,
+        explain: 'Sem saber para onde o dinheiro vai, qualquer corte é chute. Primeiro vem o registro.',
+      },
+      {
+        q: 'Por que vale anotar se a despesa saiu do salário ou do cartão?',
+        options: ['Porque o que foi no cartão vira a fatura do mês seguinte', 'Porque o cartão sempre cobra juros', 'Porque o banco exige essa informação'],
+        answer: 0,
+        explain: 'Compras no cartão comprometem a renda do mês seguinte; separar ajuda a prever a fatura.',
+      },
+      {
+        q: 'O que mantém as contas organizadas depois do primeiro mês?',
+        options: ['Uma grande revisão por ano', 'Usar só dinheiro em espécie', 'Uma revisão curta toda semana'],
+        answer: 2,
+        explain: 'Poucos minutos com frequência evitam que os lançamentos se acumulem e o controle se perca.',
+      },
+    ],
+  },
+  {
+    id: 'plano-reserva',
+    goal: 'reserva',
+    icon: '🧱',
+    title: 'Reserva de emergência passo a passo',
+    minutes: 4,
+    summary: 'Do primeiro mês guardado até a reserva completa: alvo, aporte mensal, onde guardar e como não mexer.',
+    body: [
+      {
+        h: '1. Calcule o alvo',
+        html: `<p>Some quanto você gasta por mês (custo de vida, não renda) e multiplique por 3 a 6. Se o número
+        assustar, divida em degraus: <strong>primeiro um mês</strong>, depois três, depois seis. Cada degrau
+        alcançado já protege você de uma dívida cara.</p>`,
+      },
+      {
+        h: '2. Transforme em parcela mensal',
+        html: `<p>Escolha um prazo e divida: R$ 6.000 em 12 meses são R$ 500 por mês. Crie a meta em
+        <strong>Planejar → Metas de economia</strong>: o app mostra quanto guardar por mês para chegar no prazo.
+        Se a parcela não couber, aumente o prazo em vez de desistir.</p>`,
+      },
+      {
+        h: '3. Guarde primeiro, gaste depois',
+        html: `<p>Separe a parcela da reserva no dia em que o salário cair, antes de qualquer outro gasto. Se der,
+        programe uma transferência automática. O que fica para "o fim do mês" costuma não existir.</p>`,
+      },
+      {
+        h: '4. Deixe longe do dia a dia',
+        html: `<p>Guarde numa aplicação segura e de resgate rápido, separada da conta que você usa para pagar
+        contas. Defina antes o que é emergência (perda de renda, saúde, conserto essencial) e o que não é
+        (promoção, viagem). Usou? Volte a repor antes de outras metas.</p>`,
+      },
+    ],
+    personal: (ctx) => ctx.avgExpense > 0
+      ? `Pelos seus lançamentos, o primeiro degrau (um mês) é de <strong>${ctx.fmtBRL(ctx.avgExpense)}</strong> e a reserva
+         de 3 meses, de ${ctx.fmtBRL(ctx.avgExpense * 3)}. Para chegar nos 3 meses em um ano, guarde cerca de
+         <strong>${ctx.fmtBRL(ctx.avgExpense * 3 / 12)}</strong> por mês.`
+      : null,
+    takeaways: ['Vá por degraus: 1 mês, 3 meses, 6 meses.', 'Alvo ÷ prazo = quanto guardar por mês.', 'Separe no dia do salário, numa conta à parte.'],
+    quiz: [
+      {
+        q: 'Seu custo de vida é R$ 2.000 por mês. Qual é um bom primeiro degrau para a reserva?',
+        options: ['R$ 2.000', 'R$ 24.000', 'R$ 500'],
+        answer: 0,
+        explain: 'Um mês de gastos é um primeiro degrau alcançável; depois vêm 3 e 6 meses.',
+      },
+      {
+        q: 'Você quer juntar R$ 6.000 em 12 meses. Quanto precisa guardar por mês?',
+        options: ['R$ 600', 'R$ 72.000', 'R$ 500'],
+        answer: 2,
+        explain: '6.000 ÷ 12 = 500 por mês.',
+      },
+      {
+        q: 'Qual destas situações é um bom uso da reserva de emergência?',
+        options: ['Uma promoção imperdível', 'Perder o emprego por alguns meses', 'Uma viagem de férias'],
+        answer: 1,
+        explain: 'A reserva cobre imprevistos que ameaçam o básico; desejos ganham metas próprias.',
+      },
+    ],
+  },
+  {
+    id: 'plano-dividas',
+    goal: 'dividas',
+    icon: '🧯',
+    title: 'Plano para sair das dívidas',
+    minutes: 5,
+    summary: 'Fazer a lista, parar de aumentar, escolher a ordem de pagamento e negociar sem cair em armadilha.',
+    body: [
+      {
+        h: '1. Tire uma foto das dívidas',
+        html: `<p>Liste todas: com quem, saldo devedor, juros ao mês, valor da parcela e se está em atraso. Não deixe
+        nenhuma de fora, nem a do parente. O <strong>Registrato</strong>, do Banco Central, mostra de graça os
+        empréstimos e financiamentos no seu CPF.</p>`,
+      },
+      {
+        h: '2. Pare de aumentar',
+        html: `<p>Enquanto houver rotativo ou cheque especial, evite novas compras no cartão e novos parcelamentos.
+        Registre no app o que sai do cartão: assim você vê a fatura crescendo antes que ela chegue.</p>`,
+      },
+      {
+        h: '3. Escolha a ordem',
+        html: `<ul>
+          <li>Primeiro, o essencial em dia: aluguel, água, luz, gás. Corte de serviço custa caro.</li>
+          <li>Depois, a dívida de <strong>juros mais altos</strong> (avalanche), pagando o mínimo nas outras.</li>
+          <li>Prefere ganhar ânimo? Quite a menor primeiro (bola de neve). Custa um pouco mais de juros, mas funciona
+          para quem precisa ver resultado rápido.</li>
+        </ul>`,
+      },
+      {
+        h: '4. Negocie com cuidado',
+        html: `<p>Bancos e lojas dão desconto para quitar à vista ou trocar dívida cara por uma parcela menor. Antes de
+        aceitar, compare o <strong>CET</strong> e o total que você vai pagar, não só o valor da parcela. Desconfie
+        de quem pede pagamento adiantado para "limpar o nome" ou liberar empréstimo.</p>`,
+      },
+      {
+        h: '5. Crie um colchão pequeno',
+        html: `<p>Um valor pequeno guardado, mesmo de algumas centenas de reais, evita que o próximo imprevisto vá
+        para o cartão e desfaça o seu progresso.</p>`,
+      },
+    ],
+    personal: (ctx) => ctx.income > 0
+      ? `Uma referência comum é manter as parcelas de dívidas somadas abaixo de 30% da renda. Para a sua renda de
+         ${ctx.fmtBRL(ctx.income)}, isso é até <strong>${ctx.fmtBRL(ctx.income * 0.3)}</strong> por mês. Acima disso,
+         renegociar o prazo ou a taxa costuma ser o primeiro passo.`
+      : null,
+    takeaways: ['Liste tudo: saldo, juros, parcela, atraso.', 'Contas essenciais em dia, depois os juros mais altos.', 'Na negociação, compare o CET e o total pago.'],
+    quiz: [
+      {
+        q: 'Qual é o primeiro passo de um plano para sair das dívidas?',
+        options: ['Pegar um empréstimo novo', 'Listar todas as dívidas com saldo, juros e parcela', 'Pagar a mais antiga'],
+        answer: 1,
+        explain: 'Sem a lista completa não dá para escolher a ordem nem negociar bem.',
+      },
+      {
+        q: 'Uma proposta reduz a sua parcela pela metade, mas dobra o prazo. O que conferir antes de aceitar?',
+        options: ['Só o valor da parcela', 'A cor do boleto', 'O CET e o total que você vai pagar'],
+        answer: 2,
+        explain: 'Parcela menor com prazo maior pode sair bem mais cara no total.',
+      },
+      {
+        q: 'Alguém promete "limpar seu nome" se você pagar uma taxa antes. Isso é:',
+        options: ['Um sinal típico de golpe', 'O procedimento normal dos bancos', 'Exigência do Banco Central'],
+        answer: 0,
+        explain: 'Instituições sérias não cobram adiantado para liberar crédito ou renegociar.',
+      },
+    ],
+  },
+  {
+    id: 'plano-investir',
+    goal: 'investir',
+    icon: '🧭',
+    title: 'Antes do primeiro investimento',
+    minutes: 5,
+    summary: 'O checklist de largada, objetivo e prazo, perfil de risco e como começar simples e constante.',
+    body: [
+      {
+        h: 'Checklist de largada',
+        html: `<ul>
+          <li><strong>Sem dívida cara</strong>: nenhum investimento seguro rende mais que os juros do rotativo.</li>
+          <li><strong>Reserva de emergência</strong> pronta ou bem encaminhada.</li>
+          <li><strong>Sobra mensal</strong> conhecida: os seus lançamentos mostram quanto dá para investir sem apertar.</li>
+        </ul>`,
+      },
+      {
+        h: 'Cada dinheiro tem um prazo',
+        html: `<p>Antes de escolher onde investir, pergunte <strong>para quê</strong> e <strong>para quando</strong>.
+        Dinheiro para daqui a um ano pede segurança e liquidez; para daqui a 10 anos, aguenta mais oscilação.
+        Um objetivo com valor e data também vira meta em Planejar.</p>`,
+      },
+      {
+        h: 'Conheça o seu perfil',
+        html: `<p>Bancos e corretoras aplicam um questionário de perfil (conservador, moderado, arrojado). Responda com
+        sinceridade: a pergunta-chave é como você reagiria vendo o investimento cair 10% num mês.</p>`,
+      },
+      {
+        h: 'Comece simples e constante',
+        html: `<p>Um valor fixo todo mês, em aplicações que você entende, vale mais que tentar acertar o momento certo.
+        Com o tempo, dá para diversificar. Fique de olho nos custos: taxa de administração, custódia e Imposto de
+        Renda comem parte do rendimento.</p>`,
+      },
+    ],
+    personal: (ctx) => {
+      if (!(ctx.income > 0)) return null;
+      // Exemplo ilustrativo: 10% da renda por mês, 120 meses, 0,5% ao mês (valor futuro de aportes mensais).
+      const monthly = ctx.income * 0.1;
+      const total = monthly * ((1.005 ** 120 - 1) / 0.005);
+      return `Investindo 10% da sua renda (${ctx.fmtBRL(monthly)}) todo mês por 10 anos, a 0,5% ao mês, você teria
+        cerca de <strong>${ctx.fmtBRL(total)}</strong>, tendo aportado ${ctx.fmtBRL(monthly * 120)}. É só um exemplo
+        para mostrar o efeito do tempo, não uma promessa de rendimento.`;
+    },
+    takeaways: ['Dívida cara e reserva vêm antes.', 'O prazo do objetivo define o tipo de investimento.', 'Constância e custos baixos pesam mais que acertar o momento.'],
+    quiz: [
+      {
+        q: 'Você tem saldo no rotativo do cartão e R$ 1.000 sobrando. O que costuma fazer mais sentido?',
+        options: ['Investir os R$ 1.000', 'Quitar o rotativo', 'Deixar parado na conta'],
+        answer: 1,
+        explain: 'Os juros do rotativo são muito maiores que o rendimento de qualquer investimento seguro.',
+      },
+      {
+        q: 'Para um dinheiro que você vai usar daqui a um ano, o mais importante é:',
+        options: ['Segurança e liquidez', 'O maior rendimento possível', 'Ativos que oscilam bastante'],
+        answer: 0,
+        explain: 'No curto prazo não há tempo para recuperar uma queda; segurança vem primeiro.',
+      },
+      {
+        q: 'Qual hábito costuma dar mais resultado para quem está começando?',
+        options: ['Esperar o momento perfeito para entrar', 'Seguir dicas de grupos de mensagem', 'Investir um valor fixo todo mês'],
+        answer: 2,
+        explain: 'Aportes constantes somados aos juros compostos são a base de qualquer plano de longo prazo.',
+      },
+    ],
+  },
 ];
 
 export const lessonById = (id) => LESSONS.find((l) => l.id === id);
@@ -502,17 +808,18 @@ export const lessonById = (id) => LESSONS.find((l) => l.id === id);
 // O objetivo vem de settings.goal (os mesmos de GOAL_TYPES em js/finance.js: escolhido na apresentação inicial,
 // editável em Ajustes ou no próprio Aprender). `essentials`: as lições essenciais para o objetivo, na ordem em que
 // faz sentido estudar; `others`: o resto, também em ordem. Nada some: só muda a ordem e o destaque.
-// A 1ª essencial de cada objetivo é a "lição do objetivo" usada nas dicas.
+// A 1ª essencial de cada objetivo é a lição de objetivo (o passo a passo), usada também nas dicas. Toda essencial
+// tem um `goalNotes` para o objetivo; as lições de objetivo dos outros objetivos ficam no fim de `others`.
 export const DEFAULT_GOAL = 'organizar';
 export const GOAL_TRACKS = {
-  // Organizar: saber para onde vai o dinheiro, cortar o que escapa, não deixar a dívida crescer e montar o colchão.
-  organizar: { essentials: ['orcamento', 'consumo', 'dividas', 'reserva'], others: ['golpes', 'inflacao', 'juros-compostos', 'investimentos'] },
-  // Reserva: o porquê e o quanto, de onde tirar (orçamento e consumo), por que não deixar parada (inflação) e onde guardar.
-  reserva: { essentials: ['reserva', 'orcamento', 'consumo', 'inflacao', 'investimentos'], others: ['juros-compostos', 'dividas', 'golpes'] },
-  // Dívidas: entender os juros e priorizar, achar folga no orçamento, cortar gastos e escapar do "empréstimo fácil" falso.
-  dividas: { essentials: ['dividas', 'orcamento', 'consumo', 'golpes'], others: ['reserva', 'juros-compostos', 'inflacao', 'investimentos'] },
-  // Investir: como o dinheiro cresce (e perde valor), a base segura antes de arriscar, as opções básicas e as pirâmides.
-  investir: { essentials: ['juros-compostos', 'inflacao', 'reserva', 'investimentos', 'golpes'], others: ['orcamento', 'consumo', 'dividas'] },
+  // Organizar: o roteiro de 4 semanas, saber para onde vai o dinheiro, cortar o que escapa, não deixar a dívida crescer e montar o colchão.
+  organizar: { essentials: ['plano-organizar', 'orcamento', 'consumo', 'dividas', 'reserva'], others: ['golpes', 'inflacao', 'juros-compostos', 'investimentos'] },
+  // Reserva: o passo a passo, o porquê e o quanto, de onde tirar (orçamento e consumo), por que não deixar parada (inflação) e onde guardar.
+  reserva: { essentials: ['plano-reserva', 'reserva', 'orcamento', 'consumo', 'inflacao', 'investimentos'], others: ['juros-compostos', 'dividas', 'golpes'] },
+  // Dívidas: o plano, entender os juros e priorizar, achar folga no orçamento, cortar gastos e escapar do "empréstimo fácil" falso.
+  dividas: { essentials: ['plano-dividas', 'dividas', 'orcamento', 'consumo', 'golpes'], others: ['reserva', 'juros-compostos', 'inflacao', 'investimentos'] },
+  // Investir: o checklist de largada, como o dinheiro cresce (e perde valor), a base segura antes de arriscar, as opções básicas e as pirâmides.
+  investir: { essentials: ['plano-investir', 'juros-compostos', 'inflacao', 'reserva', 'investimentos', 'golpes'], others: ['orcamento', 'consumo', 'dividas'] },
 };
 
 /**

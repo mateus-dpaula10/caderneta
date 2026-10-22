@@ -123,7 +123,7 @@ function wireGlobalEvents() {
     const n = e.target.closest('[data-new-tx]');
     if (n) openTxForm({ type: n.dataset.newTx || 'expense', date: newTxDefaults() });
   });
-  fab.innerHTML = icon('plus', { size: 26 });
+  fab.innerHTML = icon('plus', { size: 22 });
   fab.addEventListener('click', () => openTxForm({ type: 'expense', date: newTxDefaults() }));
 
   onChange((reason) => {

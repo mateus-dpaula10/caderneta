@@ -89,19 +89,24 @@ Publique em qualquer hospedagem estática com HTTPS (Netlify, Vercel, GitHub Pag
      tudo entra na fila de sincronização de uma vez. Limites: 10 MB por arquivo, 5.000 linhas por importação.
 
 **Educação**
-8. Trilha de 8 micro-aulas com quiz (3 perguntas cada): orçamento, reserva de emergência, dívidas e juros
+8. Trilha de 12 micro-aulas com quiz (3 perguntas cada): 8 de base (orçamento, reserva de emergência, dívidas e juros
    (rotativo/cheque especial), juros compostos, inflação, investimentos básicos (poupança, Tesouro Direto, CDB),
-   consumo consciente e golpes financeiros. Algumas lições mostram um bloco "Com os seus números".
-   **A trilha segue o objetivo da pessoa** (`settings.goal`, escolhido na apresentação inicial): a tela Aprender abre com
-   "Para o seu objetivo: …", as lições essenciais desse objetivo na ordem certa e o progresso delas; abaixo, "Outras
-   lições" (nada some, só muda a ordem e o destaque). A lição recomendada (Aprender, Início e dicas) é a 1ª não concluída
-   dessa ordem, e as dicas que apontam para lições fora das essenciais vão para depois das outras do mesmo tom.
+   consumo consciente e golpes financeiros) e 4 **lições de objetivo**, o passo a passo prático de cada objetivo
+   (Organize as contas em 4 semanas, Reserva de emergência passo a passo, Plano para sair das dívidas, Antes do primeiro
+   investimento). Algumas lições mostram um bloco "Com os seus números".
+   **O conteúdo segue o objetivo da pessoa** (`settings.goal`, escolhido na apresentação inicial): a tela Aprender abre com
+   "Para o seu objetivo: …", começando pela lição desse objetivo e seguindo pelas essenciais na ordem certa, com o
+   progresso delas. Cada lição essencial abre com um bloco "No seu objetivo: …" (`goalNotes` em `js/lessons.js`) que liga
+   o assunto ao objetivo e às telas do app. "Outras lições" fica recolhida (abre sozinha quando a trilha do objetivo
+   termina; nada some). A lição recomendada (Aprender, Início e dicas) é a 1ª não concluída dessa ordem, e as dicas que
+   apontam para lições fora das essenciais vão para depois das outras do mesmo tom.
    "Mudar objetivo" abre um seletor ali mesmo (o mesmo campo de Ajustes → Objetivo principal). O mapa objetivo → trilha
    fica em `GOAL_TRACKS` (`js/lessons.js`):
-   - Organizar as contas: orçamento, consumo consciente, dívidas, reserva | depois golpes, inflação, juros compostos, investimentos.
-   - Reserva de emergência: reserva, orçamento, consumo consciente, inflação, investimentos | depois juros compostos, dívidas, golpes.
-   - Sair das dívidas: dívidas, orçamento, consumo consciente, golpes | depois reserva, juros compostos, inflação, investimentos.
-   - Começar a investir: juros compostos, inflação, reserva, investimentos, golpes | depois orçamento, consumo consciente, dívidas.
+   - Organizar as contas: 4 semanas, orçamento, consumo consciente, dívidas, reserva | depois golpes, inflação, juros compostos, investimentos.
+   - Reserva de emergência: passo a passo, reserva, orçamento, consumo consciente, inflação, investimentos | depois juros compostos, dívidas, golpes.
+   - Sair das dívidas: plano, dívidas, orçamento, consumo consciente, golpes | depois reserva, juros compostos, inflação, investimentos.
+   - Começar a investir: antes do primeiro investimento, juros compostos, inflação, reserva, investimentos, golpes | depois orçamento, consumo consciente, dívidas.
+   (As lições de objetivo dos outros objetivos ficam no fim de "Outras lições".)
 9. Dicas contextuais geradas dos dados (déficit, contas atrasadas, orçamento estourado, categoria que subiu, peso das dívidas,
    reserva, metas com prazo, 50/30/20, sobra parada, hábito de registro).
 10. Simuladores: juros compostos (com gráfico), tempo até a meta, custo real do parcelamento (juros embutidos

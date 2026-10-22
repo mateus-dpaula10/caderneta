@@ -47,7 +47,9 @@ export function monthBars(data, { title = 'Receitas e despesas por mês' } = {})
     </g>`;
   }).join('');
 
-  const rows = data.map((d) => `<tr><th scope="row">${esc(d.label)}</th><td>${fmtBRL(d.income)}</td><td>${fmtBRL(d.expense)}</td><td>${fmtBRL(d.income - d.expense)}</td></tr>`).join('');
+  // Espaço normal depois do "R$" (o Intl usa um fixo) para a célula poder quebrar ali em tela estreita.
+  const cell = (cents) => fmtBRL(cents).replace(/ /g, ' ');
+  const rows = data.map((d) => `<tr><th scope="row">${esc(d.label)}</th><td>${cell(d.income)}</td><td>${cell(d.expense)}</td><td>${cell(d.income - d.expense)}</td></tr>`).join('');
 
   return `<figure class="chart">
     <div class="legend" aria-hidden="true">
@@ -56,7 +58,7 @@ export function monthBars(data, { title = 'Receitas e despesas por mês' } = {})
     </div>
     <svg viewBox="0 0 ${W} ${H}" class="chart-svg" role="group" aria-label="${esc(title)}">${grid}${groups}</svg>
     <details class="chart-table"><summary>Ver em tabela</summary>
-      <div class="table-wrap"><table><thead><tr><th scope="col">Mês</th><th scope="col">Receitas</th><th scope="col">Despesas</th><th scope="col">Saldo</th></tr></thead><tbody>${rows}</tbody></table></div>
+      <table><thead><tr><th scope="col">Mês</th><th scope="col">Receitas</th><th scope="col">Despesas</th><th scope="col">Saldo</th></tr></thead><tbody>${rows}</tbody></table>
     </details>
   </figure>`;
 }

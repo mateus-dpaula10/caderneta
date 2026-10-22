@@ -33,8 +33,11 @@ function trail() {
   const streak = computeStreak(state.progress.activity);
   const unlocked = state.progress.achievements || {};
 
+  // "Outras lições" fica recolhida, a não ser que a recomendada esteja lá (trilha do objetivo já concluída).
+  const othersOpen = track.others.some((l) => l.id === recommended);
+
   return `<header class="page-head"><div><h1 class="page-title">Aprender</h1>
-      <p class="page-sub">Lições de poucos minutos, cada uma com um quiz rápido.</p></div></header>
+      <p class="page-sub">Lições de poucos minutos escolhidas para o seu objetivo, cada uma com um quiz rápido.</p></div></header>
 
     <section class="progress-strip" aria-label="Seu progresso">
       <div><span class="big">${done}<small>/${LESSONS.length}</small></span><span>lições concluídas</span></div>
@@ -55,9 +58,12 @@ function trail() {
       ${trailList(track.essentials, { recommended })}
     </section>
 
-    <section class="block" aria-labelledby="others-title">
-      <div class="block-head"><h2 id="others-title">Outras lições</h2></div>
-      ${trailList(track.others, { start: essTotal + 1, recommended })}
+    <section class="block more-lessons" aria-labelledby="others-title">
+      <details ${othersOpen ? 'open' : ''}>
+        <summary><h2 id="others-title">Outras lições <span class="muted">(${track.others.length})</span></h2>
+          <span class="muted">Fora do seu objetivo, para quando quiser ir além.</span></summary>
+        ${trailList(track.others, { start: essTotal + 1, recommended })}
+      </details>
     </section>
 
     <section class="block" aria-labelledby="ach-title">
@@ -76,8 +82,11 @@ function trail() {
 
 function lessonPage(l) {
   // Numeração e "próxima lição" seguem a ordem da trilha do objetivo (a mesma da tela Aprender).
-  const order = goalTrack(state.settings.goal).order;
+  const track = goalTrack(state.settings.goal);
+  const order = track.order;
   const idx = order.findIndex((x) => x.id === l.id);
+  const goal = GOAL_TYPES[track.goal];
+  const goalNote = l.goalNotes?.[track.goal];
   const next = order[idx + 1];
   const p = state.progress.lessons[l.id];
   const ctx = {
@@ -93,6 +102,8 @@ function lessonPage(l) {
       <h1 id="lesson-h1" class="page-title">${esc(l.title)}</h1>
       <p class="muted">Lição ${idx + 1} de ${LESSONS.length}, ${l.minutes} min${p?.done ? `. Concluída, melhor nota ${p.best}/${p.total}.` : ''}</p>
     </header>
+    ${goalNote ? `<aside class="goal-note" aria-labelledby="goal-note-title"><span class="goal-note-icon" aria-hidden="true">${goal.icon}</span>
+      <div><p class="goal-note-title" id="goal-note-title">No seu objetivo: ${esc(goal.label.toLowerCase())}</p><p>${goalNote}</p></div></aside>` : ''}
     ${l.body.map((s) => `<section class="lesson-sec"><h2>${esc(s.h)}</h2>${s.html}</section>`).join('')}
     ${personal ? `<aside class="personal">${icon('bulb', { size: 20 })}<div><p class="personal-title">Com os seus números</p><p>${personal}</p></div></aside>` : ''}
     <section class="lesson-sec takeaways"><h2>Para lembrar</h2><ul>${l.takeaways.map((t) => `<li>${esc(t)}</li>`).join('')}</ul></section>
