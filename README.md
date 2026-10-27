@@ -145,7 +145,8 @@ financas-pwa/
 ├── index.html               # shell do app
 ├── manifest.webmanifest     # PWA (ícones, atalhos, cores)
 ├── sw.js                    # service worker (cache do app shell)
-├── supabase/schema.sql      # banco no Supabase (tabelas, RLS, gatilho, exclusão de conta)
+├── supabase/schema.sql      # banco no Supabase, schema caderneta (tabelas, RLS, gatilho, exclusão de conta)
+├── supabase/migrations/     # mudanças aplicadas no banco em produção (com o rollback de cada uma)
 ├── css/styles.css           # tokens de cor claro/escuro + layout mobile-first
 ├── icons/                   # icon.svg, icon-maskable.svg, 192/512/maskable PNG, apple-touch-icon
 └── js/
@@ -189,8 +190,12 @@ A conta é **opcional**. Sem login, nada muda: os dados ficam só no aparelho e 
 
 ### Como funciona
 
-- Cada store local (`meta`, `categories`, `transactions`, `recurrences`, `goals`) tem uma tabela igual no Supabase:
+- Cada store local (`meta`, `categories`, `transactions`, `recurrences`, `goals`) tem uma tabela igual no Supabase, no
+  schema **`caderneta`** (o projeto Supabase hospeda outros apps, cada um no seu schema; o login é comum a eles):
   `user_id`, `id`, `data` (o registro inteiro, JSON), `deleted`, `client_updated_at`, `server_updated_at`.
+  O app cria o cliente com `db: { schema: 'caderneta' }` (`SUPABASE_SCHEMA` em `js/config.js`), então `.from()` e `.rpc()`
+  vão para lá. No `public` ficam o `ping()` (keep-alive) e, até a versão antiga do app sair de circulação, views-ponte
+  `public.<tabela>` e `public.delete_my_account` (migração `supabase/migrations/2026-10-27-schema-caderneta.sql`).
 - Toda gravação local carimba `updatedAt` e entra numa fila (`outbox`, só no aparelho). Exclusão vira "lápide" (`deleted = true`).
   O vínculo com a conta, os cursores e o id do aparelho ficam na store local `syncstate`; a sessão fica no `localStorage`
   (`caderneta:auth`). Nada disso é sincronizado.
@@ -213,20 +218,23 @@ A conta é **opcional**. Sem login, nada muda: os dados ficam só no aparelho e 
 ### Configurar o projeto Supabase
 
 1. **Banco:** Supabase → SQL Editor → New query → cole `supabase/schema.sql` → Run (idempotente; pode rodar de novo).
-2. **Config do app:** `js/config.js` tem a URL do projeto e a chave **pública** (publishable). Nunca coloque ali a chave secreta
+   Antes de rodar qualquer coisa num banco que já tem dados de pessoas, faça backup (pg_dump do schema `caderneta`).
+2. **Expor o schema:** Project Settings → Data API → **Exposed schemas** → incluir `caderneta` → Save. Sem isso a API
+   responde `PGRST106 Invalid schema: caderneta` e o app não sincroniza (nada se perde: fica na fila do aparelho).
+3. **Config do app:** `js/config.js` tem a URL do projeto e a chave **pública** (publishable). Nunca coloque ali a chave secreta
    (`service_role`/secret): ela ignora o RLS e daria acesso aos dados de todo mundo.
-3. **Autenticação:** Authentication → Sign In / Providers → Email ligado, com "Confirm email" ligado.
-4. **Endereços de retorno (obrigatório ao publicar):** Authentication → URL Configuration
+4. **Autenticação:** Authentication → Sign In / Providers → Email ligado, com "Confirm email" ligado.
+5. **Endereços de retorno (obrigatório ao publicar):** Authentication → URL Configuration
    - **Site URL:** o endereço público do app (ex.: `https://caderneta.seudominio.com.br/`).
    - **Redirect URLs:** o mesmo endereço e os de teste, ex.: `https://caderneta.seudominio.com.br/**` e `http://localhost:3000/**`.
    Os links de confirmação e de "esqueci a senha" voltam para o endereço em que o app estava aberto; se ele não estiver nessa
    lista, o Supabase manda para o Site URL.
-5. **E-mails:** o SMTP embutido do Supabase no plano grátis serve só para testes: envia pouquíssimos e-mails por hora, com
+6. **E-mails:** o SMTP embutido do Supabase no plano grátis serve só para testes: envia pouquíssimos e-mails por hora, com
    remetente do Supabase (cai fácil no spam). Para uso real, configure um SMTP próprio em Authentication → Emails → SMTP Settings.
    Com o **Resend**: host `smtp.resend.com`, porta `465`, usuário `resend`, senha = uma API key do Resend (só com permissão de envio),
    remetente de um domínio verificado no Resend. Ali também dá para traduzir os modelos (Confirm signup, Reset password).
-6. **Não deixar pausar:** o plano grátis pausa o projeto após ~7 dias sem uso. O workflow `.github/workflows/keepalive.yml`
-   chama a função `ping()` (fim do `schema.sql`) toda segunda e quinta. Em GitHub → Settings → Secrets and variables → Actions,
+7. **Não deixar pausar:** o plano grátis pausa o projeto após ~7 dias sem uso. O workflow `.github/workflows/keepalive.yml`
+   chama a função `public.ping()` (fim do `schema.sql`) toda segunda e quinta. Em GitHub → Settings → Secrets and variables → Actions,
    cadastre `SUPABASE_URL` e `SUPABASE_KEY` (a chave publishable). Para testar: Actions → Keep-alive Supabase → Run workflow.
    Se pausar mesmo assim: painel do Supabase → projeto → **Restore project**.
 
@@ -251,7 +259,8 @@ pessoa baixa ou importa uma planilha, mas está no `SHELL` (cache do service wor
 - **Sem conta:** nada sai do aparelho. Não há analytics nem rastreadores.
 - **Com conta (opcional):** uma cópia dos lançamentos, metas, categorias, perfil e progresso fica no Supabase (região São Paulo),
   ligada ao e-mail da pessoa e protegida por RLS (cada pessoa só lê e grava as próprias linhas; visitante sem login não acessa nada).
-  A pessoa pode sair a qualquer momento e **excluir a conta e todos os dados do servidor** em Ajustes (função `delete_my_account`).
+  A pessoa pode sair a qualquer momento e **excluir a conta e todos os dados do servidor** em Ajustes (função `caderneta.delete_my_account`). Isso apaga o
+  login (`auth.users`), que é comum aos apps do projeto Supabase: o app avisa antes e pede para digitar EXCLUIR.
 - O backup exportado contém dados financeiros pessoais — guarde-o em local seguro.
 - A planilha do Excel é gerada e lida no próprio aparelho (nenhum arquivo é enviado a servidor). A planilha modelo leva os
   nomes das suas categorias; a preenchida, os seus lançamentos: trate as duas com o mesmo cuidado do backup.

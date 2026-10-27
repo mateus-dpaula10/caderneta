@@ -323,8 +323,10 @@ async function deleteAccountFlow() {
     let value = null;
     const dlg = openDialog(`<form class="sheet-body stack" novalidate>
       ${sheetHeader('Excluir sua conta?')}
-      <p class="callout alert">Isto apaga a conta <strong>${esc(sync.getStatus().email || '')}</strong> e todos os dados guardados no servidor,
-        de forma definitiva. Não dá para desfazer. Outros aparelhos conectados deixam de sincronizar.</p>
+      <p class="callout alert">Isto apaga a conta <strong>${esc(sync.getStatus().email || '')}</strong> e, junto com ela,
+        <strong>todos os seus dados guardados no servidor</strong>, de forma definitiva. Não dá para desfazer.</p>
+      <p>O login (e-mail e senha) deixa de existir: não dá mais para entrar com ele aqui nem em outro app que use esse
+        mesmo login. Outros aparelhos conectados deixam de sincronizar.</p>
       <label class="field" for="del-confirm"><span class="field-label">Para confirmar, digite EXCLUIR</span>
         <input id="del-confirm" name="confirm" autocomplete="off" autocapitalize="characters" spellcheck="false"></label>
       <label class="check"><input type="checkbox" name="wipe"><span>Apagar também os dados deste aparelho

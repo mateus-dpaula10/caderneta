@@ -10,7 +10,7 @@
 //    (#access_token=...&type=signup|recovery). O app lê e limpa esse hash ANTES do roteador por hash
 //    (captureAuthCallback) e entrega os tokens ao cliente com setSession. Funciona mesmo que o link seja
 //    aberto em outro navegador/aparelho (o fluxo PKCE exigiria o mesmo navegador que pediu o e-mail).
-import { SUPABASE_URL, SUPABASE_KEY, SUPABASE_LIB, AUTH_STORAGE_KEY } from './config.js';
+import { SUPABASE_URL, SUPABASE_KEY, SUPABASE_SCHEMA, SUPABASE_LIB, AUTH_STORAGE_KEY } from './config.js';
 
 let clientPromise = null;
 let capturedCallback = null;
@@ -35,6 +35,8 @@ function loadLib() {
 export function getClient() {
   if (!clientPromise) {
     clientPromise = loadLib().then((lib) => lib.createClient(SUPABASE_URL, SUPABASE_KEY, {
+      // .from() e .rpc() vão para o schema caderneta (tabelas e delete_my_account).
+      db: { schema: SUPABASE_SCHEMA },
       auth: {
         storageKey: AUTH_STORAGE_KEY,
         persistSession: true,
@@ -137,7 +139,7 @@ export async function signOutLocal() {
   try { localStorage.removeItem(AUTH_STORAGE_KEY); } catch { /* sem armazenamento */ }
 }
 
-/** LGPD: apaga a conta e todos os dados dela no servidor (função delete_my_account, cascade). */
+/** LGPD: apaga a conta (o login) e todos os dados dela no servidor (caderneta.delete_my_account, cascade). */
 export const deleteAccount = () => call((c) => c.rpc('delete_my_account'));
 
 /** Avisa mudanças de sessão (SIGNED_IN, SIGNED_OUT, TOKEN_REFRESHED, USER_UPDATED...). */
