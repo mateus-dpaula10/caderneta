@@ -225,6 +225,10 @@ A conta é **opcional**. Sem login, nada muda: os dados ficam só no aparelho e 
    remetente do Supabase (cai fácil no spam). Para uso real, configure um SMTP próprio em Authentication → Emails → SMTP Settings.
    Com o **Resend**: host `smtp.resend.com`, porta `465`, usuário `resend`, senha = uma API key do Resend (só com permissão de envio),
    remetente de um domínio verificado no Resend. Ali também dá para traduzir os modelos (Confirm signup, Reset password).
+6. **Não deixar pausar:** o plano grátis pausa o projeto após ~7 dias sem uso. O workflow `.github/workflows/keepalive.yml`
+   chama a função `ping()` (fim do `schema.sql`) toda segunda e quinta. Em GitHub → Settings → Secrets and variables → Actions,
+   cadastre `SUPABASE_URL` e `SUPABASE_KEY` (a chave publishable). Para testar: Actions → Keep-alive Supabase → Run workflow.
+   Se pausar mesmo assim: painel do Supabase → projeto → **Restore project**.
 
 ### Atualizar o supabase-js
 

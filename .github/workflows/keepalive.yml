@@ -1,0 +1,31 @@
+# Mantém o Supabase (plano grátis) ativo: ele pausa o projeto após ~7 dias sem uso.
+# Precisa da função public.ping() (fim de supabase/schema.sql) e dos secrets SUPABASE_URL e SUPABASE_KEY (chave publishable).
+name: Keep-alive Supabase
+
+on:
+  schedule:
+    - cron: '0 12 * * 1,4' # segunda e quinta, 09:00 de Brasília
+  workflow_dispatch:
+
+permissions:
+  actions: write # só para o passo que reativa este workflow
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # O GitHub desliga workflows agendados após 60 dias sem commits no repositório; reativar zera essa contagem.
+      - name: Manter o agendamento ligado
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/keepalive.yml/enable"
+
+      - name: Ping no banco
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: |
+          test -n "$SUPABASE_URL" && test -n "$SUPABASE_KEY" || { echo "Faltam os secrets SUPABASE_URL/SUPABASE_KEY"; exit 1; }
+          curl -fsS --retry 3 --retry-delay 10 -X POST "$SUPABASE_URL/rest/v1/rpc/ping" \
+            -H "apikey: $SUPABASE_KEY" -H "Content-Type: application/json" -d '{}'

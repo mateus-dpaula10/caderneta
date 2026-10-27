@@ -144,3 +144,18 @@ $$;
 revoke execute on function public.delete_my_account() from public, anon;
 grant execute on function public.delete_my_account() to authenticated;
 revoke execute on function public.caderneta_before_write() from public, anon, authenticated;
+
+-- ---------------------------------------------------------------------
+-- Keep-alive: o plano grátis pausa o projeto após ~7 dias sem uso.
+-- O GitHub Actions (.github/workflows/keepalive.yml) chama supabase.rpc('ping') 2x por semana.
+-- Não lê nem grava dado nenhum: só faz o Postgres responder.
+-- ---------------------------------------------------------------------
+create or replace function public.ping()
+returns timestamptz
+language sql
+stable
+set search_path = ''
+as $$ select now() $$;
+
+revoke execute on function public.ping() from public;
+grant execute on function public.ping() to anon, authenticated;
